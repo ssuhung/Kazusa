@@ -4,7 +4,7 @@ import progressbar
 import torch
 import torch.nn as nn
 
-from models2 import ImageEncoder, ImageDecoder
+from models import ImageEncoder, ImageDecoder
 import utils
 
 

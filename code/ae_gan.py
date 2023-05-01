@@ -1,17 +1,11 @@
-import argparse
-import os
-import random
 import time
 import progressbar
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
-import torch.nn.functional as F
 
-from models2 import TraceEncoder, ImageEncoder, ImageDecoder
-from models2 import Generator as G
-from models2 import Discriminator as D
+from models import Generator as G
+from models import Discriminator as D
 import utils
 
 class AE_GAN(object):
@@ -52,8 +46,8 @@ class AE_GAN(object):
     def load_model(self, path):
         print('Loading Model from %s ...' % (path))
         ckpt = torch.load(path)
-        self.G.module.load_state_dict(checkpoint['Generator'])
-        self.D.module.load_state_dict(checkpoint['Discriminator'])
+        self.G.module.load_state_dict(ckpt['Generator'])
+        self.D.module.load_state_dict(ckpt['Discriminator'])
 
     def save_model(self, path):
         print('Saving Model on %s ...' % (path))
