@@ -1,21 +1,22 @@
-import os
-import time
-import numpy as np
-from PIL import Image
-import progressbar
 import json
+import os
+import random
+import time
 
+import numpy as np
+import progressbar
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import torchvision.transforms as transforms
+import utils
+from data_loader import DataLoader
+from params import Params
+from PIL import Image
 from torch.utils.data import Dataset
 
-import torchvision
-import torchvision.transforms as transforms
-
-import utils
 import models
+
 
 class RealSideDataset(Dataset):
     def __init__(self, args, split):
@@ -26,8 +27,8 @@ class RealSideDataset(Dataset):
         self.img_dir = ('%s%s/' % (args.data_path[args.dataset]['media'], split))
         self.npz_dir = ('%s%s/' % (args.data_path[args.dataset]['pp-%s-%s' % (args.cpu, args.cache)], split))
 
-        self.npz_list = sorted(os.listdir(self.npz_dir))[:80000]
-        self.img_list = sorted(os.listdir(self.img_dir))[:80000]
+        self.npz_list = sorted(os.listdir(self.npz_dir))[:20000]
+        self.img_list = sorted(os.listdir(self.img_dir))[:20000]
 
         self.transform = transforms.Compose([
                        transforms.Resize(args.image_size),
@@ -134,7 +135,7 @@ class NoisyRealSideDataset(Dataset):
         return trace, image, prefix
 
 
-class ImageEngine(object):
+class ImageEngine:
     def __init__(self, args):
         self.args = args
         self.epoch = 0
@@ -155,8 +156,9 @@ class ImageEngine(object):
         self.enc = models.__dict__['trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=args.trace_c)
         self.enc = self.enc.to(self.args.device)
 
-        self.dec = models.__dict__['ResDecoder128'](dim=self.args.nz, nc=3)
-        # self.dec = models.__dict__['image_decoder_%d' % self.args.image_size](dim=self.args.nz, nc=self.args.nc)
+        self.img_enc = models.ImageEncoder(nc=3, dim=128).to(self.args.device)
+
+        self.dec = models.ImageDecoder(dim=self.args.nz, nc=3)
         self.dec = self.dec.to(self.args.device)    
 
         self.optim = torch.optim.Adam(
@@ -246,6 +248,12 @@ class ImageEngine(object):
         ckpt = torch.load(path, map_location=self.args.device)
         self.enc.load_state_dict(ckpt['enc'])
 
+    def load_image_encoder_decoder(self, path):
+        print(f"Loading Image Encoder from {path}")
+        ckpt = torch.load(path, map_location=self.args.device)
+        self.img_enc.load_state_dict(ckpt['ImageEncoder'])
+        self.dec.load_state_dict(ckpt['Decoder'])
+        
     def save_output(self, output, path):
         utils.save_image(output.data, path, normalize=True)
 
@@ -405,6 +413,47 @@ class ImageEngine(object):
             print('Recons Loss: %f' % (record.mean()))
             self.save_output(decoded, (self.args.image_root + 'train_%03d.jpg') % self.epoch)
             self.save_output(image, (self.args.image_root + 'train_%03d_target.jpg') % self.epoch)
+        
+    def train_trace_encoder(self, data_loader):
+        with torch.autograd.set_detect_anomaly(True):
+            self.epoch += 1
+            self.enc.train()
+            self.img_enc.eval()
+
+            for param in self.img_enc.parameters():
+                param.requires_grad = False
+
+            record = utils.Record()
+            start_time = time.time()
+            progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
+            for i, (trace, image, prefix, ID) in enumerate(data_loader):
+                progress.update(i + 1)
+                image = image.to(self.args.device)
+                trace = trace.to(self.args.device)
+
+                self.enc.zero_grad()
+
+                mu, log_var, encoded = self.enc(trace)
+                mu_ref, log_var_ref, encoded_ref = self.img_enc(image)
+                
+                loss_mu = self.mse(mu, mu_ref)
+                loss_log_var = self.mse(log_var, log_var_ref)
+                loss = loss_mu + loss_log_var
+                loss.backward()
+                self.optim.step()
+                record.add(loss.item())
+
+            progress.finish()
+            utils.clear_progressbar()
+            print('----------------------------------------')
+            print('Epoch: %d' % self.epoch)
+            print('Costs Time: %.2f s' % (time.time() - start_time))
+            print('Recons Loss: %f' % (record.mean()))
+            # print(encoded[0])
+            decoded = self.dec(encoded)
+            self.save_output(decoded, (self.args.image_root + 'train_%03d.jpg') % self.epoch)
+            self.save_output(image, (self.args.image_root + 'train_%03d_target.jpg') % self.epoch)
+    
 
     def train_refiner(self, data_loader):
         with torch.autograd.set_detect_anomaly(True):
@@ -499,6 +548,14 @@ class ImageEngine(object):
                     self.test(test_loader)
                     self.save_model((self.args.ckpt_root + '%03d.pth') % (i + 1))
             self.save_model((self.args.ckpt_root + 'final.pth'))
+    
+    def fit2(self, train_loader, test_loader):
+        for i in range(self.epoch, self.args.num_epoch):
+            self.train_trace_encoder(train_loader)
+            if i % self.args.test_freq == 0:
+                self.test_trace_encoder(test_loader)
+                self.save_model((self.args.ckpt_root + '%03d.pth') % (i + 1))
+        self.save_model((self.args.ckpt_root + 'final.pth'))
 
     def test(self, data_loader):
         #with torch.autograd.set_detect_anomaly(True):
@@ -524,6 +581,33 @@ class ImageEngine(object):
             print('Test.')
             print('Costs Time: %.2f s' % (time.time() - start_time))
             print('Recons Loss: %f' % (record.mean()))
+            self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
+            self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
+    
+    def test_trace_encoder(self, data_loader):
+        record = utils.Record()
+        start_time = time.time()
+        progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
+        with torch.no_grad():
+            for i, (trace, image, prefix, ID) in enumerate(data_loader):
+                progress.update(i + 1)
+                image = image.to(self.args.device)
+                trace = trace.to(self.args.device)
+
+                mu, log_var, encoded = self.enc(trace)
+                mu_ref, log_var_ref, encoded_ref = self.img_enc(image)
+
+                loss_mu = self.mse(mu, mu_ref)
+                loss_log_var = self.mse(log_var, log_var_ref)
+                loss = loss_mu + loss_log_var
+                record.add(loss.item())
+            progress.finish()
+            utils.clear_progressbar()
+            print('----------------------------------------')
+            print('Test.')
+            print('Costs Time: %.2f s' % (time.time() - start_time))
+            print('Recons Loss: %f' % (record.mean()))
+            decoded = self.dec(encoded)
             self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
             self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
 
@@ -558,31 +642,13 @@ class ImageEngine(object):
             print('Costs Time: %.2f s' % (time.time() - start_time))
             print('Recons Loss: %f' % (record.mean()))
 
+
 if __name__ == '__main__':
-    import argparse
-    import random
-
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-
-    import utils
-    from params import Params
-    from data_loader import DataLoader
-
     p = Params()
     args = p.parse()
 
-    if args.cpu == 'amd':
-        if args.cache == 'dcache':
-            (args.trace_w, args.trace_c) = (256, 4)
-        elif args.cache == 'icache':
-            (args.trace_w, args.trace_c) = (256, 1)
-    elif args.cpu == 'intel':
-        if args.cache == 'dcache':
-            (args.trace_w, args.trace_c) = (256, 8)
-        elif args.cache == 'icache':
-            (args.trace_w, args.trace_c) = (256, 1)
+    if args.cpu == 'intel' and args.cache == 'dcache':
+        (args.trace_w, args.trace_c) = (256, 8)
 
     args.nz = 128
     print(args.exp_name)
@@ -619,6 +685,18 @@ if __name__ == '__main__':
     train_loader = loader.get_loader(train_dataset)
     test_loader = loader.get_loader(test_dataset)
 
+    #############################################
+    # If you want to approximate manifold,      #
+    # comment `Part B` and uncomment `Part A`.  #
+    # If you want to reconstruct media data     #
+    # from unknown side channel records,        #
+    # comment `Part A` and uncomment `Part B`   #
+    #############################################
+
+    # Part A: for approximating manifold
+    engine.load_image_encoder_decoder("/home/ssuhung/Manifold-SCA/VAE.pth")
+    engine.fit2(train_loader, test_loader)
+
     # # Part B: for reconstructing media data
     
     # # B1. use our trained model
@@ -634,14 +712,3 @@ if __name__ == '__main__':
     
     # engine.inference(test_loader, 'test')
     
-    #############################################
-    # If you want to approximate manifold,      #
-    # comment `Part B` and uncomment `Part A`.  #
-    # If you want to reconstruct media data     #
-    # from unknown side channel records,        #
-    # comment `Part A` and uncomment `Part B`   #
-    #############################################
-
-    # Part A: for approximating manifold
-    engine.fit(train_loader, test_loader)
-       

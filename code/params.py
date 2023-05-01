@@ -3,16 +3,16 @@ import json
 import torch
 import argparse
 
-class Params():
+class Params:
     def __init__(self):
         parser = argparse.ArgumentParser()
-        parser.add_argument('--exp_name', type=str, default='test')
+        parser.add_argument('--exp_name', type=str, required=True)
         if os.environ.get('MANIFOLD_SCA') is None:
             default_output = ''
         else:
             default_output = os.path.join(os.environ.get('MANIFOLD_SCA'), 'output') + '/'
         parser.add_argument('--output_root', type=str, default=default_output)
-        parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA', 'ChestX-ray', 'SC09', 'Sub-URMP', 'COCO', 'DailyDialog'])
+        parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA', 'ChestX-ray'])
         parser.add_argument('--trace_c', type=int, default=-1)
         parser.add_argument('--trace_w', type=int, default=-1)
         parser.add_argument('--batch_size', type=int, default=50)

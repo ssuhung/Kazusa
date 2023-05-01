@@ -1,13 +1,12 @@
-import torch
-import math
-irange = range
-import os
-import random
-import shutil
 import json
+import math
+import os
+
 import progressbar
+import torch
 import torchvision
 
+irange = range
 
 class FullToSide(object):
 
@@ -274,3 +273,8 @@ def save_image(tensor, filename, nrow=8, padding=2,
     ndarr = grid.mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
     im = Image.fromarray(ndarr)
     im.save(filename)
+
+def reparameterize(mu, logvar):
+    logvar = logvar.mul(0.5).exp_()
+    eps = logvar.data.new(logvar.size()).normal_()
+    return eps.mul(logvar).add_(mu)

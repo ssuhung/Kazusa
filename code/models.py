@@ -1,22 +1,8 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-import numpy as np
-
 from cbam import CBAM
 
-class FCs(nn.Module):
-    def __init__(self, in_ch, out_ch, h_ch=100):
-        super(FCs, self).__init__()
-        self.main = nn.Sequential(
-                nn.Linear(in_ch, h_ch),
-                nn.ReLU(),
-                nn.Linear(h_ch, out_ch),
-                nn.ReLU()
-            )
-
-    def forward(self, x):
-        return self.main(x)
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -113,6 +99,54 @@ class ResDecoder128(nn.Module):
     def forward(self, input):
         input = input.view(input.size(0), input.size(1), 1, 1)
         output = self.main(input)
+        return output
+
+class ImageDecoder(nn.Module):
+    def __init__(self, dim, nc, padding_type='reflect', norm_layer=nn.InstanceNorm2d, #nn.BatchNorm2d
+                use_dropout=False, use_bias=False):
+        super(ImageDecoder, self).__init__()
+        self.dim = dim
+        self.nc = nc
+        self.net_part1 = nn.Sequential(
+            # state size. (1) x 1 x 1
+            nn.ConvTranspose2d(self.dim, self.dim, 4, 1, 0, bias=False),
+            nn.InstanceNorm2d(self.dim), #nn.BatchNorm2d(self.dim), 
+            nn.ReLU(True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (1) x 4 x 4
+        )
+        self.net_part2 = nn.Sequential( # part2
+            # state size. (1) x 4 x 4
+            nn.ConvTranspose2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.InstanceNorm2d(self.dim), #nn.BatchNorm2d(self.dim), 
+            nn.ReLU(True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (1) x 8 x 8
+            nn.ConvTranspose2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.InstanceNorm2d(self.dim), #nn.BatchNorm2d(self.dim), 
+            nn.ReLU(True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 16 x 16
+            nn.ConvTranspose2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.InstanceNorm2d(self.dim), #nn.BatchNorm2d(self.dim), 
+            nn.ReLU(True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 32 x 32
+            nn.ConvTranspose2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.InstanceNorm2d(self.dim), #nn.BatchNorm2d(self.dim), 
+            nn.ReLU(True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 64 x 64
+            nn.ConvTranspose2d(self.dim, self.nc, 4, 2, 1, bias=False),
+            nn.Tanh()
+            # state size. (nc) x 128 x 128
+        )
+        self.apply(weights_init)
+
+    def forward(self, input):
+        input = input.view(input.size(0), input.size(1), 1, 1)
+        tmp = self.net_part1(input)
+        output = self.net_part2(tmp)
         return output
 
 class ResnetBlock(nn.Module):
@@ -354,12 +388,31 @@ class trace_encoder_256(nn.Module):
         # state size. (nf*8) x 8 x 8
         self.c6 = dcgan_conv(nf * 8, nf * 8)
         # state size. (nf*8) x 4 x 4
+        # self.c7 = nn.Sequential(
+        #         nn.Conv2d(nf * 8, dim, 4, 1, 0),
+        #         nn.BatchNorm2d(dim),
+        #         nn.Tanh()
+        #         )
         self.c7 = nn.Sequential(
-                nn.Conv2d(nf * 8, dim, 4, 1, 0),
-                nn.BatchNorm2d(dim),
-                nn.Tanh()
-                )
+            nn.Flatten(),
+            nn.Linear(nf * 128, nf * 128)
+        )
+        self.fc_mu = nn.Linear(nf * 128, dim)
+        self.fu_logvar = nn.Linear(nf * 128, dim)
+
         self.apply(weights_init)
+
+    def reparameterize(self, mu: torch.tensor, logvar: torch.tensor) -> torch.tensor:
+        """
+        Reparameterization trick to sample from N(mu, var) from
+        N(0,1).
+        :param mu: (Tensor) Mean of the latent Gaussian [B x D]
+        :param logvar: (Tensor) Standard deviation of the latent Gaussian [B x D]
+        :return: (Tensor) [B x D]
+        """
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
 
     def forward(self, x):
         x = F.normalize(x)
@@ -370,7 +423,12 @@ class trace_encoder_256(nn.Module):
         h5 = self.c5(h4)
         h6 = self.c6(h5)
         h7 = self.c7(h6)
-        return h7.view(-1, self.dim)
+
+        mu = self.fc_mu(h7)
+        log_var = self.fu_logvar(h7)
+        output = self.reparameterize(mu, log_var)
+        
+        return mu, log_var, output
 
 class attn_trace_encoder_square_128(nn.Module):
     def __init__(self, dim, nc=1):
@@ -643,6 +701,66 @@ class RefinerG_BN(nn.Module):
         # state size is (nc) x 128 x 128
         output = self.tanh(d7)
         return output
+
+class ImageEncoder(nn.Module):
+    def __init__(self, nc, dim, padding_type='reflect', norm_layer=nn.BatchNorm2d, use_dropout=False, use_bias=False):
+        super(ImageEncoder, self).__init__()
+        self.nc = nc
+        self.dim = dim
+        self.main = nn.Sequential(
+            # input is (nc) x 128 x 128
+            nn.Conv2d(self.nc, self.dim, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 64 x 64
+            nn.Conv2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(dim),
+            nn.LeakyReLU(0.2, inplace=True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 32 x 32
+            nn.Conv2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(dim),
+            nn.LeakyReLU(0.2, inplace=True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 16 x 16
+            nn.Conv2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(dim),
+            nn.LeakyReLU(0.2, inplace=True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 8 x 8
+            nn.Conv2d(self.dim, self.dim, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(dim),
+            nn.LeakyReLU(0.2, inplace=True),
+            ResnetBlock(self.dim, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias),
+            # state size. (dim) x 4 x 4
+            # nn.Conv2d(self.dim, self.dim, 4, 1, 0, bias=False),
+            # nn.LeakyReLU(0.2, inplace=True),
+            # state size. (dim) x 1 x 1
+        )
+        self.fc_mu = nn.Linear(dim*16, dim)
+        self.fc_var = nn.Linear(dim*16, dim)
+        self.apply(weights_init)
+
+    def reparameterize(self, mu: torch.tensor, logvar: torch.tensor) -> torch.tensor:
+        """
+        Reparameterization trick to sample from N(mu, var) from
+        N(0,1).
+        :param mu: (Tensor) Mean of the latent Gaussian [B x D]
+        :param logvar: (Tensor) Standard deviation of the latent Gaussian [B x D]
+        :return: (Tensor) [B x D]
+        """
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
+
+    def forward(self, input):
+        output = self.main(input)
+        output = torch.flatten(output, start_dim=1)
+        mu = self.fc_mu(output)
+        log_var = self.fc_var(output)
+        output = self.reparameterize(mu, log_var)
+
+        return mu, log_var, output
 
 class image_decoder_128(nn.Module):
     def __init__(self, dim, nc=1):

@@ -1,5 +1,5 @@
 *.DS_Store
 data/*
 output/*
- *__pycache__/*
- *.pyc
+*.pyc
+ICLR2021/**
