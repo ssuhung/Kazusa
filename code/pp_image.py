@@ -153,7 +153,7 @@ class ImageEngine:
 
     def init_model_optimizer(self):
         print('Initializing Model and Optimizer...')
-        self.enc = models.__dict__['trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=args.trace_c)
+        self.enc = models.TraceEncoder(dim=self.args.nz, nc=args.trace_c)
         self.enc = self.enc.to(self.args.device)
 
         self.img_enc = models.ImageEncoder(nc=3, dim=128).to(self.args.device)
@@ -410,7 +410,7 @@ class ImageEngine:
             print('----------------------------------------')
             print('Epoch: %d' % self.epoch)
             print('Costs Time: %.2f s' % (time.time() - start_time))
-            print('Recons Loss: %f' % (record.mean()))
+            print('Recons L1 Loss: %f' % (record.mean()))
             self.save_output(decoded, (self.args.image_root + 'train_%03d.jpg') % self.epoch)
             self.save_output(image, (self.args.image_root + 'train_%03d_target.jpg') % self.epoch)
         
@@ -419,6 +419,7 @@ class ImageEngine:
             self.epoch += 1
             self.enc.train()
             self.img_enc.eval()
+            self.dec.eval()
 
             for param in self.img_enc.parameters():
                 param.requires_grad = False
@@ -436,9 +437,7 @@ class ImageEngine:
                 mu, log_var, encoded = self.enc(trace)
                 mu_ref, log_var_ref, encoded_ref = self.img_enc(image)
                 
-                loss_mu = self.mse(mu, mu_ref)
-                loss_log_var = self.mse(log_var, log_var_ref)
-                loss = loss_mu + loss_log_var
+                loss = self.mse(mu, mu_ref)
                 loss.backward()
                 self.optim.step()
                 record.add(loss.item())
@@ -450,7 +449,7 @@ class ImageEngine:
             print('Costs Time: %.2f s' % (time.time() - start_time))
             print('Recons Loss: %f' % (record.mean()))
             # print(encoded[0])
-            decoded = self.dec(encoded)
+            decoded = self.dec(mu)
             self.save_output(decoded, (self.args.image_root + 'train_%03d.jpg') % self.epoch)
             self.save_output(image, (self.args.image_root + 'train_%03d_target.jpg') % self.epoch)
     
@@ -535,12 +534,12 @@ class ImageEngine:
                     self.test(test_loader)
                     self.save_model((self.args.ckpt_root + '%03d.pth') % (i + 1))
             self.save_model((self.args.ckpt_root + 'final.pth'))
-            self.epoch = 0
-            for i in range(self.epoch, self.args.num_epoch):
-                self.train_refiner(train_loader)
-                if i % self.args.test_freq == 0:
-                    self.save_refiner((self.args.ckpt_root + 'refiner-%03d.pth') % (i + 1))
-            self.save_refiner((self.args.ckpt_root + 'refiner-final.pth'))
+            # self.epoch = 0
+            # for i in range(self.epoch, self.args.num_epoch):
+            #     self.train_refiner(train_loader)
+            #     if i % self.args.test_freq == 0:
+            #         self.save_refiner((self.args.ckpt_root + 'refiner-%03d.pth') % (i + 1))
+            # self.save_refiner((self.args.ckpt_root + 'refiner-final.pth'))
         else:
             for i in range(self.epoch, self.args.num_epoch):
                 self.train_indicator(train_loader)
@@ -558,35 +557,38 @@ class ImageEngine:
         self.save_model((self.args.ckpt_root + 'final.pth'))
 
     def test(self, data_loader):
-        #with torch.autograd.set_detect_anomaly(True):
         record = utils.Record()
         start_time = time.time()
+        self.enc.eval()
+        self.dec.eval()
         progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
-        # progress = progressbar.ProgressBar(maxval=len(data_loader)).start()
         with torch.no_grad():
             for i, (trace, image, prefix, ID) in enumerate(data_loader):
                 progress.update(i + 1)
                 image = image.to(self.args.device)
                 trace = trace.to(self.args.device)
                 ID = ID.to(self.args.device)
-                bs = image.size(0)
                 encoded = self.enc(trace)
                 decoded = self.dec(encoded)
 
                 recons_err = self.l1(decoded, image)
                 record.add(recons_err.item())
+
             progress.finish()
             utils.clear_progressbar()
             print('----------------------------------------')
             print('Test.')
             print('Costs Time: %.2f s' % (time.time() - start_time))
-            print('Recons Loss: %f' % (record.mean()))
+            print('Recons L1 Loss: %f' % (record.mean()))
             self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
             self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
     
     def test_trace_encoder(self, data_loader):
         record = utils.Record()
         start_time = time.time()
+        self.enc.eval()
+        self.img_enc.eval()
+        self.dec.eval()
         progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
         with torch.no_grad():
             for i, (trace, image, prefix, ID) in enumerate(data_loader):
@@ -597,19 +599,24 @@ class ImageEngine:
                 mu, log_var, encoded = self.enc(trace)
                 mu_ref, log_var_ref, encoded_ref = self.img_enc(image)
 
-                loss_mu = self.mse(mu, mu_ref)
-                loss_log_var = self.mse(log_var, log_var_ref)
-                loss = loss_mu + loss_log_var
+                loss = self.mse(mu, mu_ref)
                 record.add(loss.item())
+
+                # TODO Image L1 error
+
+                if i == 0:
+                    decoded_no_sample = self.dec(mu)
+                    decoded = self.dec(encoded)
+                    self.save_output(decoded_no_sample, (self.args.image_root + 'test_%03d_64_noSample.jpg') % self.epoch)
+                    self.save_output(decoded, (self.args.image_root + 'test_%03d_64.jpg') % self.epoch)
+                    self.save_output(image, (self.args.image_root + 'test_%03d_target_64.jpg') % self.epoch)
+
             progress.finish()
             utils.clear_progressbar()
             print('----------------------------------------')
             print('Test.')
             print('Costs Time: %.2f s' % (time.time() - start_time))
             print('Recons Loss: %f' % (record.mean()))
-            decoded = self.dec(encoded)
-            self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
-            self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
 
     def inference(self, data_loader, sub):
         record = utils.Record()
@@ -626,7 +633,6 @@ class ImageEngine:
                 image = image.to(self.args.device)
                 trace = trace.to(self.args.device)
 
-                bs = image.size(0)
                 encoded = self.enc(trace)
                 decoded = self.dec(encoded)
                 if self.args.use_refiner:
@@ -641,6 +647,33 @@ class ImageEngine:
             print('Inference.')
             print('Costs Time: %.2f s' % (time.time() - start_time))
             print('Recons Loss: %f' % (record.mean()))
+
+    def test_and_print_error(self, data_loader):
+        record = utils.Record()
+        start_time = time.time()
+        self.enc.eval()
+        self.dec.eval()
+        progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
+        with torch.no_grad():
+            for i, (trace, image, prefix, ID) in enumerate(data_loader):
+                progress.update(i + 1)
+                image = image.to(self.args.device)
+                trace = trace.to(self.args.device)
+                ID = ID.to(self.args.device)
+                mu, log_var, encoded = self.enc(trace)
+                decoded = self.dec(encoded)
+
+                if torch.any(torch.isnan(decoded)):
+                    print("non in decoded")
+                else:
+                    recons_err = self.l1(decoded, image)
+                record.add(recons_err.item())
+            progress.finish()
+            utils.clear_progressbar()
+            print('----------------------------------------')
+            print('Test.')
+            print('Costs Time: %.2f s' % (time.time() - start_time))
+            print('Recons L1 Loss: %f' % (record.mean()))
 
 
 if __name__ == '__main__':
@@ -683,32 +716,30 @@ if __name__ == '__main__':
     engine = ImageEngine(args)
 
     train_loader = loader.get_loader(train_dataset)
-    test_loader = loader.get_loader(test_dataset)
+    test_loader = loader.get_loader(test_dataset, shuffle=False)
 
     #############################################
-    # If you want to approximate manifold,      #
-    # comment `Part B` and uncomment `Part A`.  #
-    # If you want to reconstruct media data     #
-    # from unknown side channel records,        #
-    # comment `Part A` and uncomment `Part B`   #
-    #############################################
 
-    # Part A: for approximating manifold
-    engine.load_image_encoder_decoder("/home/ssuhung/Manifold-SCA/VAE.pth")
-    engine.fit2(train_loader, test_loader)
+    # Part A1: train trace to image autoencoder
+    engine.fit(train_loader, test_loader)
 
-    # # Part B: for reconstructing media data
+    # Part A2: use pre-trained image encoder and decoder to train trace encoder
+    # engine.load_image_encoder_decoder("/home/ssuhung/Manifold-SCA/models/VAE.pth")
+    # engine.fit2(train_loader, test_loader)
+
+
+    # Part B: for reconstructing media data
     
-    # # B1. use our trained model
+    # B1. use our trained model
     # ROOT = '..' if os.environ.get('MANIFOLD_SCA') is None else os.environ.get('MANIFOLD_SCA') # use our trained model
     # engine.load_model(ROOT + '/models/pp/CelebA_intel_dcache/final.pth')
     # if arg.use_refiner:
     #     engine.load_refiner(ROOT + '/models/pin/CelebA_refiner/refiner-final.pth')
     
-    # # # B2. use your model
-    # # engine.load_model(args.ckpt_root + 'final.pth')
-    # # if arg.use_refiner:
-    # #     engine.load_refiner(args.ckpt_root + 'refiner-final.pth')
+    # B2. use your model
+    # engine.load_model(args.ckpt_root + 'final.pth')
+    # if arg.use_refiner:
+    #     engine.load_refiner(args.ckpt_root + 'refiner-final.pth')
     
     # engine.inference(test_loader, 'test')
     
