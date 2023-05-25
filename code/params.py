@@ -22,7 +22,7 @@ class Params:
         parser.add_argument('--nz', type=int, default=512)
         parser.add_argument('--nc', type=int, default=3)
         parser.add_argument('--num_epoch', type=int, default=50)
-        parser.add_argument('--test_freq', type=int, default=5)
+        parser.add_argument('--test_freq', type=int, default=3)
         parser.add_argument('--side', type=str, default='cacheline', choices=['cacheline', 'cachebank', 'pagetable'])
         parser.add_argument('--cpu', type=str, default='intel', choices=['intel', 'amd'])
         parser.add_argument('--cache', type=str, default='dcache', choices=['dcache', 'icache'])
@@ -47,6 +47,10 @@ class Params:
         parser.add_argument('--min_db', type=float, default=-100)
         parser.add_argument('--num_ID', type=int, default=-1)
         parser.add_argument('--num_content', type=int, default=-1)
+        # Pre-train VAE specific parameters
+        parser.add_argument('--vae_epoch', type=int, default=100)
+        parser.add_argument('--kld_weight', type=float, default=0.00025)
+        parser.add_argument('--vae_lr', type=float, default=1e-4)
 
         self.args = parser.parse_args()
         self.args.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')

@@ -4,11 +4,9 @@ import numpy as np
 from PIL import Image
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-import torchvision
 import torchvision.transforms as transforms
 
 import utils
@@ -32,7 +30,7 @@ class CelebaDataset(Dataset):
     def __init__(self, npz_dir, img_dir, ID_path, split,
                 image_size, side, trace_c, trace_w,
                 op=None, k=None):
-        super(CelebaDataset).__init__()
+        super().__init__()
         self.npz_dir = ('%s%s/' % (npz_dir, split))
         self.img_dir = ('%s%s/' % (img_dir, split))
         self.trace_c = trace_c
@@ -103,6 +101,33 @@ class CelebaDataset(Dataset):
 
         ID = torch.LongTensor([ID]).squeeze()
         return trace, image, prefix, ID
+    
+class ImageDataset(Dataset):
+    def __init__(self, args, split):
+        super().__init__()
+        self.args = args
+        self.img_dir = args.image_dir + ('train/' if split == 'train' else 'test/')
+
+        self.img_list = sorted(os.listdir(self.img_dir))
+
+        self.transform = transforms.Compose([
+                       transforms.Resize(args.image_size),
+                       transforms.CenterCrop(args.image_size),
+                       transforms.ToTensor(),
+                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+               ])
+        
+        print('Total %d Data Points.' % len(self.img_list))
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, index):
+        img_name = self.img_list[index]
+        image = Image.open(self.img_dir + img_name)
+        image = self.transform(image)
+        
+        return image
 
 class DataLoader:
     def __init__(self, args):

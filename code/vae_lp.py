@@ -18,17 +18,17 @@ class VAE_LP:
 
     def init_model_optimizer(self):
         print('Initializing Model & Optimizer...')
-        self.ImageEncoder = ImageEncoder(nc=self.args['nc'], dim=self.args['vae_dim'])
+        self.ImageEncoder = ImageEncoder(nc=self.args.nc, dim=self.args.vae_dim)
         self.ImageEncoder = torch.nn.DataParallel(self.ImageEncoder).cuda()
         
-        self.Decoder = ImageDecoder(nc=self.args['nc'], dim=self.args['vae_dim'])
+        self.Decoder = ImageDecoder(nc=self.args.nc, dim=self.args.vae_dim)
         self.Decoder = torch.nn.DataParallel(self.Decoder).cuda()
         
         self.optimizer = torch.optim.Adam(
                             list(self.ImageEncoder.module.parameters()) + \
                             list(self.Decoder.module.parameters()),
-                            lr=self.args['vae_lr'],
-                            betas=(self.args['beta1'], 0.999)
+                            lr=self.args.vae_lr,
+                            betas=(self.args.beta1, 0.999)
                             )
 
     def load_model(self, path):
@@ -74,7 +74,7 @@ class VAE_LP:
 
                 recons_loss = self.l1(image2image, image)
                 kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0) #??
-                kld_weight = self.args['kld_weight']
+                kld_weight = self.args.kld_weight
                 loss = recons_loss + kld_weight * kld_loss
 
                 loss.backward()
@@ -88,8 +88,8 @@ class VAE_LP:
             print('Costs time: %.2fs' % (time.time() - start_time))
             print('Loss of Image to Image: %f' % (record_image.mean()))
             print('----------------------------------------')
-            utils.save_image(image.data, ('%s/image/train/%03d_target.jpg' % (self.args['vae_dir'], self.epoch)), normalize=True)
-            utils.save_image(image2image.data, ('%s/image/train/%03d_recon.jpg' % (self.args['vae_dir'], self.epoch)), normalize=True)
+            utils.save_image(image.data, ('%s/image/train/%03d_target.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
+            utils.save_image(image2image.data, ('%s/image/train/%03d_recon.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
 
     def test(self, data_loader):
         print('Testing...')
@@ -107,7 +107,7 @@ class VAE_LP:
 
                 recons_loss = self.l1(image2image, image)
                 kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-                kld_weight = self.args['kld_weight']
+                kld_weight = self.args.kld_weight
                 loss = recons_loss + kld_weight * kld_loss
 
                 record_image.add(loss)
@@ -118,8 +118,8 @@ class VAE_LP:
             print('Costs time: %.2fs' % (time.time() - start_time))
             print('Loss of Image to Image: %f' % (record_image.mean()))
             print('----------------------------------------')
-            utils.save_image(image.data, ('%s/image/test/%03d_target.jpg' % (self.args['vae_dir'], self.epoch)), normalize=True)
-            utils.save_image(image2image.data, ('%s/image/test/%03d_recon.jpg' % (self.args['vae_dir'], self.epoch)), normalize=True)
+            utils.save_image(image.data, ('%s/image/test/%03d_target.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
+            utils.save_image(image2image.data, ('%s/image/test/%03d_recon.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
 
     def inference(self, x):
         with torch.no_grad():
@@ -132,7 +132,7 @@ class VAE_LP:
     def generate(self):
         with torch.no_grad():
             self.Decoder.eval()
-            random_vec = torch.rand(self.args['batch_size'], self.args['vae_dim'])
+            random_vec = torch.rand(self.args.batch_size, self.args.vae_dim)
             for i in range(50):
                 for j in range(128):
                     random_vec[i][j] *= 100 - 50
