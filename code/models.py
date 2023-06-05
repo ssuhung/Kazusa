@@ -1064,3 +1064,38 @@ class Discriminator(nn.Module):
     def forward(self, input):
         output = self.main(input)
         return output.view(-1, 1)
+
+class TraceEncoderLSTM(nn.Module):
+    def __init__(self, output_dim):
+        super().__init__()
+        self.network1 = nn.Sequential(
+            # batch_size x cache_lines(64) x length(8192)
+            nn.Conv1d(64, 64, 3),
+            nn.ReLU(),
+            # batch_size x features(64) x length(8190)
+            nn.MaxPool1d(4),
+            # batch_size x features(64) x length(2048)
+            nn.Conv1d(64, 64, 3),
+            nn.ReLU(),
+            # batch_size x features(64) x length(2048)
+            nn.MaxPool1d(4),
+            # batch_size x features(64) x length(511)
+        )
+        # batch_size x length(511) x features(64)
+        self.lstm = nn.LSTM(input_size=64, hidden_size=32, batch_first=True)
+        self.network2 = nn.Sequential(
+            # batch_size x length(511) x hidden_states(32)
+            nn.Flatten(),
+            nn.Dropout(0.2),
+            nn.Linear(511*32, output_dim)
+            # batch_size x output_dim(128)
+        )
+        self.apply(weights_init)
+
+    def forward(self, trace):
+        c1 = trace.permute(0, 2, 1)
+        c2 = self.network1(c1)
+        c2 = c2.permute(0, 2, 1)
+        c3, _ = self.lstm(c2)
+        output = self.network2(c3)
+        return output

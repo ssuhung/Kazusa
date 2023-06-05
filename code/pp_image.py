@@ -58,7 +58,7 @@ class RealSideDataset(Dataset):
         npz = np.load(self.npz_dir + npz_name)
         trace = npz['arr_0']
         trace = trace.astype(np.float32)
-        trace = torch.from_numpy(trace).view([self.trace_c, self.trace_w, self.trace_w])
+        trace = torch.from_numpy(trace)
 
         image = Image.open(self.img_dir + img_name)
         image = self.transform(image)
@@ -153,7 +153,7 @@ class ImageEngine:
 
     def init_model_optimizer(self):
         print('Initializing Model and Optimizer...')
-        self.enc = models.TraceEncoder(dim=self.args.nz, nc=args.trace_c)
+        self.enc = models.TraceEncoderLSTM(output_dim=self.args.nz)
         self.enc = self.enc.to(self.args.device)
 
         self.img_enc = models.ImageEncoder(nc=3, dim=128).to(self.args.device)
@@ -434,10 +434,10 @@ class ImageEngine:
 
                 self.enc.zero_grad()
 
-                mu, log_var, encoded = self.enc(trace)
+                encoded = self.enc(trace)
                 mu_ref, log_var_ref, encoded_ref = self.img_enc(image)
                 
-                loss = self.mse(mu, mu_ref)
+                loss = self.mse(encoded, mu_ref)
                 loss.backward()
                 self.optim.step()
                 record.add(loss.item())
@@ -447,9 +447,9 @@ class ImageEngine:
             print('----------------------------------------')
             print('Epoch: %d' % self.epoch)
             print('Costs Time: %.2f s' % (time.time() - start_time))
-            print('Recons Loss: %f' % (record.mean()))
+            print('MSE Loss: %f' % (record.mean()))
             # print(encoded[0])
-            decoded = self.dec(mu)
+            decoded = self.dec(encoded)
             self.save_output(decoded, (self.args.image_root + 'train_%03d.jpg') % self.epoch)
             self.save_output(image, (self.args.image_root + 'train_%03d_target.jpg') % self.epoch)
     
@@ -596,27 +596,27 @@ class ImageEngine:
                 image = image.to(self.args.device)
                 trace = trace.to(self.args.device)
 
-                mu, log_var, encoded = self.enc(trace)
+                encoded = self.enc(trace)
                 mu_ref, log_var_ref, encoded_ref = self.img_enc(image)
 
-                loss = self.mse(mu, mu_ref)
+                loss = self.mse(encoded, mu_ref)
                 record.add(loss.item())
 
                 # TODO Image L1 error
 
                 if i == 0:
-                    decoded_no_sample = self.dec(mu)
+                    decoded_no_sample = self.dec(encoded)
                     decoded = self.dec(encoded)
-                    self.save_output(decoded_no_sample, (self.args.image_root + 'test_%03d_64_noSample.jpg') % self.epoch)
-                    self.save_output(decoded, (self.args.image_root + 'test_%03d_64.jpg') % self.epoch)
-                    self.save_output(image, (self.args.image_root + 'test_%03d_target_64.jpg') % self.epoch)
+                    # self.save_output(decoded_no_sample, (self.args.image_root + 'test_%03d_noSample.jpg') % self.epoch)
+                    self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
+                    self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
 
             progress.finish()
             utils.clear_progressbar()
             print('----------------------------------------')
             print('Test.')
             print('Costs Time: %.2f s' % (time.time() - start_time))
-            print('Recons Loss: %f' % (record.mean()))
+            print('MSE Loss: %f' % (record.mean()))
 
     def inference(self, data_loader, sub):
         record = utils.Record()
@@ -704,8 +704,8 @@ if __name__ == '__main__':
 
     utils.make_path(args.image_root)
     utils.make_path(args.ckpt_root)
-    utils.make_path(args.recons_root)
-    utils.make_path(args.target_root)
+    # utils.make_path(args.recons_root)
+    # utils.make_path(args.target_root)
 
     loader = DataLoader(args)
 
@@ -721,11 +721,11 @@ if __name__ == '__main__':
     #############################################
 
     # Part A1: train trace to image autoencoder
-    engine.fit(train_loader, test_loader)
+    # engine.fit(train_loader, test_loader)
 
     # Part A2: use pre-trained image encoder and decoder to train trace encoder
-    # engine.load_image_encoder_decoder("/home/ssuhung/Manifold-SCA/models/VAE.pth")
-    # engine.fit2(train_loader, test_loader)
+    engine.load_image_encoder_decoder("/home/ssuhung/Manifold-SCA/models/VAE.pth")
+    engine.fit2(train_loader, test_loader)
 
 
     # Part B: for reconstructing media data
