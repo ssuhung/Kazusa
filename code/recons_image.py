@@ -1,15 +1,17 @@
+import random
 import time
-import numpy as np
-import progressbar
 
+import progressbar
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
 import utils
+from data_loader import *
+from params import Params
+
 import models
 
-class ImageEngine(object):
+
+class ImageEngine:
     def __init__(self, args):
         self.args = args
         self.epoch = 0
@@ -37,13 +39,13 @@ class ImageEngine(object):
                         betas=(self.args.beta1, 0.999)
                         )
 
-        self.E = models.__dict__['image_output_embed_128'](dim=self.args.nz, nc=self.args.nc)
+        self.E = models.image_output_embed_128(dim=self.args.nz, nc=self.args.nc)
         self.E = self.E.to(self.args.device)
 
-        self.D = models.__dict__['classifier'](dim=self.args.nz, n_class=1, use_bn=False)
+        self.D = models.classifier(dim=self.args.nz, n_class=1, use_bn=False)
         self.D = self.D.to(self.args.device)
 
-        self.C = models.__dict__['classifier'](dim=self.args.nz, n_class=self.args.n_class, use_bn=False)
+        self.C = models.classifier(dim=self.args.nz, n_class=self.args.n_class, use_bn=False)
         self.C = self.C.to(self.args.device)
 
         self.optim_D = torch.optim.Adam(
@@ -112,7 +114,6 @@ class ImageEngine(object):
             record_C_real_acc = utils.Record() # C1 for ID
             record_C_fake_acc = utils.Record()
             start_time = time.time()
-            #progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
             progress = progressbar.ProgressBar(maxval=len(data_loader)).start()
             for i, (trace, image, prefix, ID) in enumerate(data_loader):
                 progress.update(i + 1)
@@ -161,7 +162,6 @@ class ImageEngine(object):
                 decoded = self.dec(encoded + 0.05 * noise)
 
                 embed_fake = self.E(decoded)
-                label_real = torch.full((batch_size, 1), self.real_label, dtype=real_data.dtype).to(self.args.device)
                 output_fake = self.D(embed_fake)
                 pred_fake = self.C(embed_fake)
 
@@ -191,47 +191,33 @@ class ImageEngine(object):
             self.save_output(image, (self.args.image_root + 'train_%03d_target.jpg') % self.epoch)
             
     def test(self, data_loader):
-        #with torch.autograd.set_detect_anomaly(True):
         self.set_eval()
         record = utils.Record()
         start_time = time.time()
-        #progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
         progress = progressbar.ProgressBar(maxval=len(data_loader)).start()
         with torch.no_grad():
             for i, (trace, image, prefix, ID) in enumerate(data_loader):
                 progress.update(i + 1)
                 image = image.to(self.args.device)
                 trace = trace.to(self.args.device)
-                ID = ID.to(self.args.device)
-                bs = image.size(0)
                 encoded = self.enc(trace)
                 decoded = self.dec(encoded)                
                 recons_err = self.mse(decoded, image)
                 record.add(recons_err.item())
+
+                if i == 0:
+                    self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
+                    self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
+
             progress.finish()
             utils.clear_progressbar()
             print('----------------------------------------')
             print('Test.')
             print('Costs Time: %.2f s' % (time.time() - start_time))
             print('Recons Loss: %f' % (record.mean()))
-            self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
-            self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
 
 if __name__ == '__main__':
-    import argparse
-    import random
-
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-
-    import utils
-    from params import Params
-    from data_loader import *
-    # all datasets
-
-    p = Params()
-    args = p.parse()
+    args = Params().parse()
 
     args.trace_c = 6
     args.trace_w = 256
@@ -283,7 +269,7 @@ if __name__ == '__main__':
     engine = ImageEngine(args)
 
     train_loader = loader.get_loader(train_dataset)
-    test_loader = loader.get_loader(test_dataset)
+    test_loader = loader.get_loader(test_dataset, shuffle=False)
 
     for i in range(args.num_epoch):
         engine.train(train_loader)
