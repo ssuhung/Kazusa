@@ -1,15 +1,13 @@
-import os
 import json
-import numpy as np
-from PIL import Image
+import os
 
+import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset
-
 import torchvision.transforms as transforms
-
 import utils
+from PIL import Image
+from torch.utils.data import Dataset
 
 
 def side_to_bound(side):
@@ -19,9 +17,9 @@ def side_to_bound(side):
     elif side == 'pagetable':
         v_max = 0xFFFF_FFFF >> 12
         v_min = -(0xFFFF_FFFF >> 12)
-    elif side == 'cachebank':
-        v_max = 0xFFFF_FFFF >> 2
-        v_min = -(0xFFFF_FFFF >> 2)
+    elif side == 'cacheline_index':
+        v_max = 0xFFF >> 6
+        v_min = -(0xFFF >> 6)
     else:
         raise NotImplementedError
     return v_max, v_min
@@ -38,8 +36,8 @@ class CelebaDataset(Dataset):
         self.op = op
         self.k = k
 
-        self.npz_list = sorted(os.listdir(self.npz_dir))
-        self.img_list = sorted(os.listdir(self.img_dir))
+        self.npz_list = sorted(os.listdir(self.npz_dir))[:80000]
+        self.img_list = sorted(os.listdir(self.img_dir))[:80000]
 
         self.transform = transforms.Compose([
                        transforms.Resize(image_size),
@@ -71,6 +69,7 @@ class CelebaDataset(Dataset):
 
         npz = np.load(self.npz_dir + npz_name)
         trace = npz['arr_0']
+        trace = np.pad(trace, (0, 93216), mode='constant')  # Pad 256*256*6 - 300,000 = 93216 zeros
         trace = trace.astype(np.float32)
 
         if self.op == 'shift':

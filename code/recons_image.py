@@ -15,17 +15,19 @@ class ImageEngine:
     def __init__(self, args):
         self.args = args
         self.epoch = 0
-        self.mse = nn.MSELoss().to(self.args.device)
-        self.l1 = nn.L1Loss().to(self.args.device)
-        self.bce = nn.BCELoss().to(self.args.device)
-        self.ce = nn.CrossEntropyLoss().to(self.args.device)
+        self.mse = nn.MSELoss()
+        self.l1 = nn.L1Loss()
+        self.bce = nn.BCELoss()
+        self.ce = nn.CrossEntropyLoss()
         self.real_label = 1
         self.fake_label = 0
         self.init_model_optimizer()
 
     def init_model_optimizer(self):
         print('Initializing Model and Optimizer...')
-        self.enc = models.__dict__['attn_trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=self.args.trace_c)
+        # self.enc = models.__dict__['attn_trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=self.args.trace_c)
+        # self.enc = models.__dict__['trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=self.args.trace_c)
+        self.enc = models.TraceEncoder_1DCNN(dim=self.args.nz)
         self.enc = self.enc.to(self.args.device)
 
         self.dec = models.__dict__['ResDecoder%d' % self.args.image_size](dim=self.args.nz, nc=self.args.nc)
@@ -227,7 +229,6 @@ if __name__ == '__main__':
     manual_seed = random.randint(1, 10000)
     print('Manual Seed: %d' % manual_seed)
 
-    random.seed(manual_seed)
     torch.manual_seed(manual_seed)
     torch.cuda.manual_seed_all(manual_seed)
 

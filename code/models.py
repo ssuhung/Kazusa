@@ -29,14 +29,13 @@ class Attention(nn.Module):
     """
     Attention Network.
     """
-
     def __init__(self, encoder_dim, decoder_dim, attention_dim):
         """
         :param encoder_dim: feature size of encoded images
         :param decoder_dim: size of decoder's RNN
         :param attention_dim: size of the attention network
         """
-        super(Attention, self).__init__()
+        super().__init__()
         self.encoder_att = nn.Linear(encoder_dim, attention_dim)  # linear layer to transform encoded image
         self.decoder_att = nn.Linear(decoder_dim, attention_dim)  # linear layer to transform decoder's output
         self.full_att = nn.Linear(attention_dim, 1)  # linear layer to calculate values to be softmax-ed
@@ -60,7 +59,7 @@ class Attention(nn.Module):
 
 class ResDecoder128(nn.Module):
     def __init__(self, dim, nc, padding_type='reflect', norm_layer=nn.BatchNorm2d, use_dropout=False, use_bias=False):
-        super(ResDecoder128, self).__init__()
+        super().__init__()
         self.dim = dim
         self.nc = nc
         self.main = nn.Sequential(
@@ -104,7 +103,7 @@ class ResDecoder128(nn.Module):
 class ImageDecoder(nn.Module):
     def __init__(self, dim, nc, padding_type='reflect', norm_layer=nn.InstanceNorm2d, #nn.BatchNorm2d
                 use_dropout=False, use_bias=False):
-        super(ImageDecoder, self).__init__()
+        super().__init__()
         self.dim = dim
         self.nc = nc
         self.net_part1 = nn.Sequential(
@@ -151,7 +150,7 @@ class ImageDecoder(nn.Module):
 
 class ResnetBlock(nn.Module):
     def __init__(self, dim, padding_type, norm_layer, use_dropout, use_bias):
-        super(ResnetBlock, self).__init__()
+        super().__init__()
         self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
 
     def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
@@ -192,7 +191,7 @@ class ResnetBlock(nn.Module):
 
 class dcgan_conv(nn.Module):
     def __init__(self, nin, nout):
-        super(dcgan_conv, self).__init__()
+        super().__init__()
         self.main = nn.Sequential(
                 nn.Conv2d(nin, nout, 4, 2, 1),
                 nn.BatchNorm2d(nout),
@@ -202,9 +201,22 @@ class dcgan_conv(nn.Module):
     def forward(self, input):
         return self.main(input)
 
+class dcgan_conv_1d(nn.Module):
+    def __init__(self, nin, nout, kernal_size):
+        super().__init__()
+        self.main = nn.Sequential(
+            nn.Conv1d(nin, nout, kernal_size, padding=kernal_size//2),
+            nn.MaxPool1d(4),
+            nn.BatchNorm1d(nout),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
+
+    def forward(self, input):
+        return self.main(input)
+
 class dcgan_upconv(nn.Module):
     def __init__(self, nin, nout):
-        super(dcgan_upconv, self).__init__()
+        super().__init__()
         self.main = nn.Sequential(
                 nn.ConvTranspose2d(nin, nout, 4, 2, 1),
                 nn.BatchNorm2d(nout),
@@ -216,7 +228,7 @@ class dcgan_upconv(nn.Module):
 
 class attn_trace_encoder_512(nn.Module):
     def __init__(self, dim, nc=1):
-        super(attn_trace_encoder_512, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         # input is (nc) x 512 x 512
@@ -277,7 +289,7 @@ class attn_trace_encoder_512(nn.Module):
 
 class trace_encoder_512(nn.Module):
     def __init__(self, dim, nc=1):
-        super(trace_encoder_512, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         # input is (nc) x 512 x 512
@@ -316,7 +328,7 @@ class trace_encoder_512(nn.Module):
 
 class attn_trace_encoder_256(nn.Module):
     def __init__(self, dim, nc=1):
-        super(attn_trace_encoder_256, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         # input is (nc) x 256 x 256
@@ -370,9 +382,66 @@ class attn_trace_encoder_256(nn.Module):
         h7 = self.c7(h6)
         return h7.view(-1, self.dim)
 
+class TraceEncoder_1DCNN(nn.Module):
+    """
+    Modified from attn_trace_encoder_256
+    """
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+        nf = 64
+        self.c0 = nn.Flatten()
+        self.network = nn.Sequential(
+            # batch size x 1 x (6 x 256 x 256 = 393,216)
+            dcgan_conv_1d(1, nf, 96),
+            # batch size x nf x 98304
+            dcgan_conv_1d(nf, nf, 4),
+            # batch size x nf x 24576
+            dcgan_conv_1d(nf, nf * 2, 4),
+            # batch size x nf*2 x 6144
+            dcgan_conv_1d(nf * 2, nf * 4, 4),
+            # batch size x nf*4 x 1536
+            dcgan_conv_1d(nf * 4, nf * 8, 4),
+            # batch size x nf*8 x 384
+            dcgan_conv_1d(nf * 8, nf * 8, 4),
+            # batch size x nf*8 x 96
+            # self.c7 = nn.Sequential(
+            #         nn.Conv1d(nf * 8, dim, 96), 
+            #         # batch size x dim x 1
+            #         nn.BatchNorm1d(dim),
+            #         nn.Tanh()
+            #         )
+            nn.Sequential(
+                nn.Flatten(),
+                # batch size x nf*8*96
+                nn.Linear(nf*8*96, 128),
+                # batch size x 128
+                nn.BatchNorm1d(128),
+            )
+        )
+
+        self.apply(weights_init)
+
+    def forward(self, x):
+        x = self.c0(F.normalize(x))
+        x = torch.unsqueeze(x, dim=1)
+        # h1 = self.c1(x)
+        # h2 = self.c2(h1)
+        # h3 = self.c3(h2)
+        # h4 = self.c4(h3)
+        # h5 = self.c5(h4)
+        # h6 = self.c6(h5)
+        # h7 = self.c7(h6)
+        h7 = self.network(x)
+        return h7.view(-1, self.dim)
+
 class trace_encoder_256(nn.Module):
+    """
+    Accept input: (batch size) x 6 x 256 x 256
+    or length 393,216
+    """
     def __init__(self, dim, nc=1):
-        super(trace_encoder_256, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         # input is (nc) x 256 x 256
@@ -404,7 +473,7 @@ class trace_encoder_256(nn.Module):
         h6 = self.c6(h5)
         h7 = self.c7(h6)
 
-        return h7
+        return h7.view(-1, self.dim)
 
 class TraceEncoder(nn.Module):
     def __init__(self, dim, nc=1):
@@ -463,7 +532,7 @@ class TraceEncoder(nn.Module):
 
 class attn_trace_encoder_square_128(nn.Module):
     def __init__(self, dim, nc=1):
-        super(attn_trace_encoder_square_128, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         # state size. (nc) x 128 x 128
@@ -515,83 +584,9 @@ class attn_trace_encoder_square_128(nn.Module):
         #h6 = self.c6(h5)
         return h5.transpose(1, 2).transpose(2, 3)#.view(-1, self.dim)
 
-class trace_encoder_square_128(nn.Module):
-    def __init__(self, dim, nc=1):
-        super(trace_encoder_square_128, self).__init__()
-        self.dim = dim
-        nf = 64
-        # state size. (nc) x 128 x 128
-        self.c1 = dcgan_conv(nc, nf)
-        # state size. (nf) x 64 x 64
-        self.c2 = dcgan_conv(nf, nf * 2)
-        # state size. (nf*2) x 32 x 32
-        self.c3 = dcgan_conv(nf * 2, nf * 4)
-        # state size. (nf*4) x 16 x 16
-        self.c4 = dcgan_conv(nf * 4, nf * 8)
-        # state size. (nf*8) x 8 x 8
-        self.c5 = nn.Sequential(
-                nn.Conv2d(nf * 8, dim, 4, 2, 1),
-                nn.BatchNorm2d(dim),
-                nn.Tanh()
-                )
-        self.apply(weights_init)
-
-    def forward(self, x):
-        x = F.normalize(x)
-        h1 = self.c1(x)
-        h2 = self.c2(h1)
-        h3 = self.c3(h2)
-        h4 = self.c4(h3)
-        h5 = self.c5(h4)
-        return h5.transpose(1, 2).transpose(2, 3)#.view(-1, self.dim)
-
-    def forward_grad(self, x, grad_saver):
-        x = F.normalize(x)
-        x.requires_grad = True
-        x.register_hook(grad_saver.save_grad)
-        h1 = self.c1(x)
-        h2 = self.c2(h1)
-        h3 = self.c3(h2)
-        h4 = self.c4(h3)
-        h5 = self.c5(h4)
-        return h5.transpose(1, 2).transpose(2, 3)#.view(-1, self.dim)
-
-class trace_encoder_square_256(nn.Module):
-    def __init__(self, dim, nc=1):
-        super(trace_encoder_square_256, self).__init__()
-        self.dim = dim
-        nf = 64
-        # input is (nc) x 256 x 256
-        self.c1 = dcgan_conv(nc, nf)
-        # input is (nf) x 128 x 128
-        self.c2 = dcgan_conv(nf, nf)
-        # state size. (nf) x 64 x 64
-        self.c3 = dcgan_conv(nf, nf * 2)
-        # state size. (nf*2) x 32 x 32
-        self.c4 = dcgan_conv(nf * 2, nf * 4)
-        # state size. (nf*4) x 16 x 16
-        self.c5 = dcgan_conv(nf * 4, nf * 8)
-        # state size. (nf*4) x 8 x 8
-        self.c6 = nn.Sequential(
-                nn.Conv2d(nf * 8, dim, 4, 2, 1),
-                nn.BatchNorm2d(dim),
-                nn.Tanh()
-                )
-        self.apply(weights_init)
-
-    def forward(self, x):
-        x = F.normalize(x)
-        h1 = self.c1(x)
-        h2 = self.c2(h1)
-        h3 = self.c3(h2)
-        h4 = self.c4(h3)
-        h5 = self.c5(h4)
-        h6 = self.c6(h5)
-        return h6.transpose(1, 2).transpose(2, 3)#.view(-1, self.dim)
-
 class RefinerD(nn.Module):
     def __init__(self, nc, ndf):
-        super(RefinerD, self).__init__()
+        super().__init__()
         self.nc = nc
         self.ndf = ndf
         self.main = nn.Sequential(
@@ -626,7 +621,7 @@ class RefinerD(nn.Module):
 
 class RefinerG_BN(nn.Module):
     def __init__(self, nc, ngf):
-        super(RefinerG_BN, self).__init__()
+        super().__init__()
 
         self.nc = nc
         self.ngf = ngf
@@ -735,7 +730,7 @@ class RefinerG_BN(nn.Module):
 
 class ImageEncoder(nn.Module):
     def __init__(self, nc, dim, padding_type='reflect', norm_layer=nn.BatchNorm2d, use_dropout=False, use_bias=False):
-        super(ImageEncoder, self).__init__()
+        super().__init__()
         self.nc = nc
         self.dim = dim
         self.main = nn.Sequential(
@@ -795,7 +790,7 @@ class ImageEncoder(nn.Module):
 
 class image_decoder_128(nn.Module):
     def __init__(self, dim, nc=1):
-        super(image_decoder_128, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         self.upc1 = nn.Sequential(
@@ -832,7 +827,7 @@ class image_decoder_128(nn.Module):
 
 class image_output_embed_128(nn.Module):
     def __init__(self, dim=128, nc=1):
-        super(image_output_embed_128, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         # input is (nc) x 128 x 128
@@ -866,7 +861,7 @@ class image_output_embed_128(nn.Module):
 
 class discriminator_128(nn.Module):
     def __init__(self, dim=1, nc=1):
-        super(discriminator_128, self).__init__()
+        super().__init__()
         self.dim = dim
         nf = 64
         # input is (nc) x 128 x 128
@@ -903,7 +898,7 @@ class discriminator_128(nn.Module):
 
 class classifier(nn.Module):
     def __init__(self, dim, n_class, use_bn=False):
-        super(classifier, self).__init__()
+        super().__init__()
         self.dim = dim
         self.n_class = n_class
         if use_bn:
@@ -929,7 +924,7 @@ class classifier(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self, nc, dim):
-        super(Generator, self).__init__()
+        super().__init__()
 
         self.nc = nc
         self.dim = dim
@@ -1032,7 +1027,7 @@ class Generator(nn.Module):
 
 class Discriminator(nn.Module):
     def __init__(self, nc, dim):
-        super(Discriminator, self).__init__()
+        super().__init__()
         self.nc = nc
         self.dim = dim
         self.main = nn.Sequential(
@@ -1065,35 +1060,105 @@ class Discriminator(nn.Module):
         output = self.main(input)
         return output.view(-1, 1)
 
+# class TraceEncoderLSTM(nn.Module):
+#     def __init__(self, output_dim):
+#         super().__init__()
+#         self.network1 = nn.Sequential(
+#             # batch_size x cache_lines(64) x length(8192)
+#             nn.Conv1d(64, 64, 3),
+#             nn.ReLU(),
+#             # batch_size x features(64) x length(8190)
+#             nn.MaxPool1d(4),
+#             # batch_size x features(64) x length(2048)
+#             nn.Conv1d(64, 64, 3),
+#             nn.ReLU(),
+#             # batch_size x features(64) x length(2048)
+#             nn.MaxPool1d(4),
+#             # batch_size x features(64) x length(511)
+#         )
+#         # batch_size x length(511) x features(64)
+#         self.lstm = nn.LSTM(input_size=64, hidden_size=32, batch_first=True)
+#         self.network2 = nn.Sequential(
+#             # batch_size x length(511) x hidden_states(32)
+#             nn.Flatten(),
+#             nn.Dropout(0.2),
+#             nn.Linear(511*32, output_dim)
+#             # batch_size x output_dim(128)
+#         )
+#         self.apply(weights_init)
+
+#     def forward(self, trace):
+#         c1 = trace.permute(0, 2, 1)
+#         c2 = self.network1(c1)
+#         c2 = c2.permute(0, 2, 1)
+#         c3, _ = self.lstm(c2)
+#         output = self.network2(c3)
+#         return output
+
 class TraceEncoderLSTM(nn.Module):
     def __init__(self, output_dim):
         super().__init__()
         self.network1 = nn.Sequential(
-            # batch_size x cache_lines(64) x length(8192)
+            # batch_size x cache_lines(64) x length(5600)
             nn.Conv1d(64, 64, 3),
             nn.ReLU(),
-            # batch_size x features(64) x length(8190)
+            # batch_size x features(64) x length(5598)
             nn.MaxPool1d(4),
-            # batch_size x features(64) x length(2048)
+            # batch_size x features(64) x length(1399)
             nn.Conv1d(64, 64, 3),
             nn.ReLU(),
-            # batch_size x features(64) x length(2048)
+            # batch_size x features(64) x length(1397)
             nn.MaxPool1d(4),
-            # batch_size x features(64) x length(511)
+            # batch_size x features(64) x length(349)
         )
-        # batch_size x length(511) x features(64)
+        # batch_size x length(349) x features(64)
         self.lstm = nn.LSTM(input_size=64, hidden_size=32, batch_first=True)
         self.network2 = nn.Sequential(
-            # batch_size x length(511) x hidden_states(32)
+            # batch_size x length(349) x hidden_states(32)
             nn.Flatten(),
             nn.Dropout(0.2),
-            nn.Linear(511*32, output_dim)
+            nn.Linear(349*32, output_dim)
             # batch_size x output_dim(128)
         )
         self.apply(weights_init)
 
     def forward(self, trace):
         c1 = trace.permute(0, 2, 1)
+        c2 = self.network1(c1)
+        c2 = c2.permute(0, 2, 1)
+        c3, _ = self.lstm(c2)
+        output = self.network2(c3)
+        return output
+
+class TraceEncoderLSTMPin(nn.Module):
+    def __init__(self, output_dim):
+        super().__init__()
+        self.network1 = nn.Sequential(
+            # batch_size x 1 x length(300,000)
+            nn.Conv1d(1, 256, 16, stride=3),
+            nn.ReLU(),
+            # batch_size x features(256) x length(99,995)
+            nn.MaxPool1d(4),
+            # batch_size x features(256) x length(24998)
+            nn.Conv1d(256, 256, 8, stride=3),
+            nn.ReLU(),
+            # batch_size x features(256) x length(8331)
+            nn.MaxPool1d(4),
+            # batch_size x features(256) x length(2082)
+        )
+        # batch_size x length(2082) x features(256)
+        self.lstm = nn.LSTM(input_size=256, hidden_size=32, batch_first=True)
+        self.network2 = nn.Sequential(
+            # batch_size x length(2082) x hidden_states(32)
+            nn.Flatten(),
+            nn.Dropout(0.2),
+            nn.Linear(2082*32, output_dim)
+            # batch_size x output_dim(128)
+        )
+        self.apply(weights_init)
+
+    def forward(self, trace):
+        c1 = torch.unsqueeze(trace, dim=1)
         c2 = self.network1(c1)
         c2 = c2.permute(0, 2, 1)
         c3, _ = self.lstm(c2)

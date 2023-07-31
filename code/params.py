@@ -23,7 +23,7 @@ class Params:
         parser.add_argument('--nc', type=int, default=3)
         parser.add_argument('--num_epoch', type=int, default=50)
         parser.add_argument('--test_freq', type=int, default=3)
-        parser.add_argument('--side', type=str, default='cacheline', choices=['cacheline', 'cachebank', 'pagetable'])
+        parser.add_argument('--side', type=str, default='cacheline', choices=['cacheline', 'cacheline_index', 'pagetable'])
         parser.add_argument('--cpu', type=str, default='intel', choices=['intel', 'amd'])
         parser.add_argument('--cache', type=str, default='dcache', choices=['dcache', 'icache'])
         parser.add_argument('--image_size', type=int, default=128)

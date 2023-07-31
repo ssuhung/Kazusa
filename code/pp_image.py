@@ -2,6 +2,7 @@ import json
 import os
 import random
 import time
+from attr import s
 
 import numpy as np
 import progressbar
@@ -20,15 +21,15 @@ import models
 
 class RealSideDataset(Dataset):
     def __init__(self, args, split):
-        super(RealSideDataset).__init__()
+        super().__init__()
 
         self.trace_c = args.trace_c
         self.trace_w = args.trace_w
         self.img_dir = ('%s%s/' % (args.data_path[args.dataset]['media'], split))
-        self.npz_dir = ('%s%s/' % (args.data_path[args.dataset]['pp-%s-%s' % (args.cpu, args.cache)], split))
+        self.npz_dir = ('%s%s/' % (args.data_path[args.dataset]['cacheline'], split))
 
-        self.npz_list = sorted(os.listdir(self.npz_dir))[:20000]
-        self.img_list = sorted(os.listdir(self.img_dir))[:20000]
+        self.npz_list = sorted(os.listdir(self.npz_dir))[:60000]
+        self.img_list = sorted(os.listdir(self.img_dir))[:60000]
 
         self.transform = transforms.Compose([
                        transforms.Resize(args.image_size),
@@ -52,7 +53,7 @@ class RealSideDataset(Dataset):
     def __getitem__(self, index):
         npz_name = self.npz_list[index]
         prefix = npz_name.split('.')[0]
-        img_name = prefix + '.jpg'
+        img_name = prefix.split('_')[0] + '.jpg'
         ID = int(self.ID_dict[img_name]) - 1
 
         npz = np.load(self.npz_dir + npz_name)
@@ -153,7 +154,8 @@ class ImageEngine:
 
     def init_model_optimizer(self):
         print('Initializing Model and Optimizer...')
-        self.enc = models.TraceEncoderLSTM(output_dim=self.args.nz)
+        # self.enc = models.TraceEncoderLSTMPin(output_dim=self.args.nz)
+        self.enc = models.trace_encoder_
         self.enc = self.enc.to(self.args.device)
 
         self.img_enc = models.ImageEncoder(nc=3, dim=128).to(self.args.device)

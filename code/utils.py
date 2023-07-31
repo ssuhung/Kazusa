@@ -8,7 +8,7 @@ import torchvision
 
 irange = range
 
-class FullToSide(object):
+class FullToSide:
 
     def __init__(self):
         self.MASK32 = 0xFFFF_FFFF
@@ -118,8 +118,9 @@ class NormalizeInverse(torchvision.transforms.Normalize):
         return super().__call__(tensor.clone())
         #return super().__call__(tensor)
 
-def my_scale(v, v_max, v_min, low=0, up=1):
-    return (up - low) * (v - v_min) / max(1e-7, v_max - v_min) + low
+def my_scale(v, v_max, v_min):
+    """ Compress data to a value between 1 and 0 """
+    return (v - v_min) / (v_max - v_min)
 
 def my_scale_inv(v, v_max, v_min, low=0, up=1):
     return (v - low) / (up - low) * max(1e-7, v_max - v_min) + v_min
@@ -167,7 +168,7 @@ def clear_progressbar():
     # moves up two lines again
     print("\033[2A")
 
-class Record(object):
+class Record:
     def __init__(self):
         self.loss = 0
         self.count = 0
