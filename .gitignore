@@ -3,3 +3,4 @@ data/*
 output/*
 *.pyc
 ICLR2021/**
+.vscode/*
