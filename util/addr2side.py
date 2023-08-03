@@ -2,51 +2,37 @@ import os
 import numpy as np
 import argparse
 import progressbar
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--ID', type=int, default=1, help='ID')
-args = parser.parse_args()
-
-widgets = ['Progress: ', progressbar.Percentage(), ' ', 
-            progressbar.Bar('#'), ' ', 'Count: ', progressbar.Counter(), ' ',
-            progressbar.Timer(), ' ', progressbar.ETA()]
+from typing import Union
 
 def make_path(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
 class FullToSide:
-    def __init__(self):
-        self.MASK32 = 0xFFFF_FFFF
-        self.MASK_ASLR = 0xFFF
-
-    def to_cacheline32(self, addr, ASLR=False):
-        if ASLR:
-            addr = addr & self.MASK_ASLR
-        return (addr & self.MASK32) >> 6
+    def to_cacheline32(self, addr):
+        return (addr & 0xFFFF_FFFF) >> 6
 
     def to_pagetable32(self, addr):
-        return (addr & self.MASK32) >> 12
+        return (addr & 0xFFFF_FFFF) >> 12
     
-    def to_cacheline_index(self, addr):
-        w = -1 if addr < 0 else 1
-        addr = abs(addr)
-        addr = (addr & 0xFFF) >> 6
-        return w * addr
+    def to_cacheline(self, addr: Union[int, np.array]) -> Union[int, np.array]:
+        """ addr should > 0"""
+        return (addr & 0xFFF) >> 6
+    
+    def to_cacheline_rw(self, addr: np.array) -> np.array:
+        rw = np.where(addr > 0, 1, -1)
+        addr_abs = abs(addr)
+        return rw * self.to_cacheline(addr_abs)
 
-    def full_to_all(self, in_path, cacheline_path, pagetable_path, n_bits=32, ASLR=False):
+    def full_to_all(self, in_path, cacheline_path, pagetable_path):
         full = np.load(in_path)['arr_0']
         cacheline_arr = []
         pagetable_arr = []
         for addr in full:
             w = (-1 if addr < 0 else 1)
             addr = abs(addr)
-            if n_bits == 32:
-                cacheline = self.to_cacheline32(addr, ASLR)
-                pagetable = self.to_pagetable32(addr)
-            else:
-                cacheline = self.to_cacheline64(addr, ASLR)
-                pagetable = self.to_pagetable64(addr)
+            cacheline = self.to_cacheline32(addr)
+            pagetable = self.to_pagetable32(addr)
             cacheline_arr.append(w * cacheline)
             pagetable_arr.append(w * pagetable)
 
@@ -62,65 +48,72 @@ class FullToSide:
         np.savez_compressed(cacheline_path, np.array(cacheline_arr))
         np.savez_compressed(pagetable_path, np.array(pagetable_arr))
 
-    def full_to_cacheline(self, in_path, out_path, n_bits=32, ASLR=False):
+    def full_to_cacheline_32(self, in_path, out_path):
         full = np.load(in_path)['arr_0']
         cacheline_arr = []
         for addr in full:
             w = (-1 if addr < 0 else 1)
             addr = abs(addr)
-            if n_bits == 32:
-                cacheline = self.to_cacheline32(addr, ASLR)
-            else:
-                cacheline = self.to_cacheline64(addr, ASLR)
+            cacheline = self.to_cacheline32(addr)
             cacheline_arr.append(w * cacheline)
         np.savez_compressed(out_path, np.array(cacheline_arr))
 
-    def full_to_pagetable(self, in_path, out_path, n_bits=32):
+    def full_to_pagetable32(self, in_path, out_path):
         full = np.load(in_path)['arr_0']
         pagetable_arr = []
         for addr in full:
             w = (-1 if addr < 0 else 1)
             addr = abs(addr)
-            if n_bits == 32:
-                pagetable = self.to_pagetable32(addr)
-            else:
-                pagetable = self.to_pagetable64(addr)
+            pagetable = self.to_pagetable32(addr)
             pagetable_arr.append(w * pagetable)
         np.savez_compressed(out_path, np.array(pagetable_arr))
 
-    def full_to_cacheline_index(self, in_path, out_path):
+    def full_to_cacheline(self, in_path, out_path):
         full = np.load(in_path)['arr_0']
-        vec_fun = np.vectorize(self.to_cacheline_index)
-        cacheline_index_arr = vec_fun(full)
+        output_len = 300000
+        arr = self.to_cacheline_rw(full)
 
         # Padding
-        pad_length = 300000
-        if cacheline_index_arr.size < pad_length:
-            cacheline_index_arr = np.pad(cacheline_index_arr, pad_width=(0, pad_length - cacheline_index_arr.size), mode='constant')
-        else:
-            print("Warning: trace length longer than padding length")
-            cacheline_index_arr = cacheline_index_arr[:pad_length]
+        assert full.size < out_path, "Error: trace length longer than padding length"
+        arr = np.pad(arr, pad_width=(0, output_len - arr.size), mode='constant')
 
-        assert cacheline_index_arr.shape == (pad_length,), "Size error"
-        np.savez_compressed(out_path, cacheline_index_arr)
+        np.savez_compressed(out_path, arr)
+    
+    def full_to_cacheline_encode(self, in_path, out_path):
+        output_len = 300000
+        assert in_path.shape[0] <= output_len, "Error: trace length longer than padding length"
 
-####################
-#      CelebA      #
-####################
+        full = np.load(in_path)['arr_0']
+        arr = np.zeros((output_len, 64), dtype=int)
+
+        for i, addr in enumerate(full):
+            arr[i][self.to_cacheline(addr)] = 1 if addr > 0 else -1
+
+        np.savez_compressed(out_path, arr)
+
 
 if __name__ == '__main__':
-    input_dir = "/media/ssuhung/Asshole's/pin_output/npz/"
-    total_num = 1
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ID', type=int, default=1, help='ID')
+    args = parser.parse_args()
 
-    # cacheline_dir = "/media/ssuhung/Asshole's/pin_output_processed/cacheline/"
-    # pagetable_dir = "/media/ssuhung/Asshole's/pin_output_processed/pagetable/"
-    cacheline_index_dir = "/home/ssuhung/Downloads/pin_output_processed/cacheline_index/"
+    widgets = ['Progress: ', progressbar.Percentage(), ' ', 
+                progressbar.Bar('#'), ' ', 'Count: ', progressbar.Counter(), ' ',
+                progressbar.Timer(), ' ', progressbar.ETA()]
+    
+    manifold_root = "/home/ssuhung/Manifold-SCA/"
+    input_dir = manifold_root + "data/CelebA_crop128/pin/raw/"
+    total_num = 4
+
+    # cacheline32_dir = manifold_root + "data/CelebA_crop128/pin/cacheline32/"
+    # pagetable32_dir = manifold_root + "data/CelebA_crop128/pin/pagetable32/"
+    cacheline_dir = manifold_root + "data/CelebA_crop128/pin/cacheline/"
 
     sub_list = [sub + '/' for sub in sorted(os.listdir(input_dir))]
 
-    # make_path(cacheline_dir)
-    # make_path(pagetable_dir)
-    make_path(cacheline_index_dir)
+    # make_path(cacheline32_dir)
+    # make_path(pagetable32_dir)
+    make_path(cacheline_dir)
 
     tool = FullToSide()
 
@@ -129,14 +122,11 @@ if __name__ == '__main__':
         unit_len = int(len(total_npz_list) // total_num)
 
         ID = args.ID - 1
-        if ID == total_num - 1:
-            npz_list = total_npz_list[ID*unit_len:]
-        else:
-            npz_list = total_npz_list[ID*unit_len:(ID+1)*unit_len]
+        npz_list = total_npz_list[ID*unit_len:(ID+1)*unit_len]
 
-        # make_path(cacheline_dir + sub)
-        # make_path(pagetable_dir + sub)
-        make_path(cacheline_index_dir + sub)
+        # make_path(cacheline32_dir + sub)
+        # make_path(pagetable32_dir + sub)
+        make_path(cacheline_dir + sub)
         
         print('File: ', len(npz_list))
         print('Total: ', len(total_npz_list))
@@ -146,30 +136,25 @@ if __name__ == '__main__':
             progress.update(i + 1)
             
             npz_path = input_dir + sub + npz_name
-            # cacheline_path = cacheline_dir + sub + npz_name
-            # pagetable_path = pagetable_dir + sub + npz_name
-            cacheline_index_path = cacheline_index_dir + sub + npz_name
+            # cacheline32_path = cacheline_dir + sub + npz_name
+            # pagetable32_path = pagetable_dir + sub + npz_name
+            cacheline_path = cacheline_dir + sub + npz_name
 
             # tool.full_to_cacheline(
             #     in_path=npz_path,
-            #     out_path=cacheline_path,
-            #     n_bits=32,
-            #     ASLR=False
+            #     out_path=cacheline32_path
             #     )
             # tool.full_to_pagetable(
             #     in_path=npz_path,
-            #     out_path=pagetable_path,
-            #     n_bits=32
+            #     out_path=pagetable32_path
             #     )
             
             # tool.full_to_all(
             #     in_path=npz_path,
             #     cacheline_path=cacheline_path,
-            #     pagetable_path=pagetable_path,
-            #     n_bits=32,
-            #     ASLR=False
+            #     pagetable_path=pagetable_path
             #     )
 
-            tool.full_to_cacheline_index(in_path=npz_path, out_path=cacheline_index_path)
+            tool.full_to_cacheline_encode(in_path=npz_path, out_path=cacheline_path)
 
         progress.finish()
