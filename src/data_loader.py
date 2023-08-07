@@ -11,18 +11,30 @@ from torch.utils.data import Dataset
 
 
 def side_to_bound(side):
-    if side == 'cacheline':
+    if side == 'cacheline32':
         v_max = 0xFFFF_FFFF >> 6
         v_min = -(0xFFFF_FFFF >> 6)
-    elif side == 'pagetable':
+    elif side == 'pagetable32':
         v_max = 0xFFFF_FFFF >> 12
         v_min = -(0xFFFF_FFFF >> 12)
-    elif side == 'cacheline_index':
+    elif side == 'cacheline':
         v_max = 0xFFF >> 6
         v_min = -(0xFFF >> 6)
     else:
         raise NotImplementedError
     return v_max, v_min
+
+def to_cacheline(addr):
+    return (abs(addr) & 0xFFF) >> 6
+
+def full_to_cacheline_index_encode(full: np.array):
+    assert full.shape[0] < 300000, "Error: trace length longer than padding length"
+    arr = np.zeros((300000, 64), dtype=np.float16)
+    arr_cacheline = to_cacheline(full)
+    result = np.where(full > 0, 1., -1.)
+    arr[np.arange(len(arr_cacheline)), arr_cacheline] = result
+
+    return arr.astype(np.float32)
 
 class CelebaDataset(Dataset):
     def __init__(self, npz_dir, img_dir, ID_path, split,
@@ -46,7 +58,7 @@ class CelebaDataset(Dataset):
                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                ])
 
-        self.v_max, self.v_min = side_to_bound(side)
+        # self.v_max, self.v_min = side_to_bound(side)
         
         print('Total %d Data Points.' % len(self.npz_list))
 
@@ -69,8 +81,9 @@ class CelebaDataset(Dataset):
 
         npz = np.load(self.npz_dir + npz_name)
         trace = npz['arr_0']
-        trace = np.pad(trace, (0, 93216), mode='constant')  # Pad 256*256*6 - 300,000 = 93216 zeros
-        trace = trace.astype(np.float32)
+        # trace = np.pad(trace, (0, 93216), mode='constant')  # Pad 256*256*6 - 300,000 = 93216 zeros
+        # trace = trace.astype(np.float32)
+        trace = full_to_cacheline_index_encode(trace)
 
         if self.op == 'shift':
             trace = np.concatenate([trace[self.k:], trace[:self.k]])
@@ -84,11 +97,9 @@ class CelebaDataset(Dataset):
             trace = np.concatenate([del_trace, np.array([0] * del_num)])
             trace = trace.astype(np.float32)
 
-        trace = torch.from_numpy(trace).view([self.trace_c, self.trace_w, self.trace_w])
-        trace = utils.my_scale(v=trace,
-                               v_max=self.v_max,
-                               v_min=self.v_min
-                            )
+        trace = torch.from_numpy(trace)
+        # trace = trace.view([self.trace_c, self.trace_w, self.trace_w])
+        # trace = utils.my_scale(v=trace, v_max=self.v_max, v_min=self.v_min)
         if self.op == 'noise':
             trace = (1 - self.k) * trace + self.k * torch.randn(trace.size())
 

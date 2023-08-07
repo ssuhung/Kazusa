@@ -12,7 +12,7 @@ class Params:
         else:
             default_output = os.path.join(os.environ.get('MANIFOLD_SCA'), 'output') + '/'
         parser.add_argument('--output_root', type=str, default=default_output)
-        parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA', 'ChestX-ray'])
+        parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA'])
         parser.add_argument('--trace_c', type=int, default=-1)
         parser.add_argument('--trace_w', type=int, default=-1)
         parser.add_argument('--batch_size', type=int, default=50)
@@ -23,7 +23,7 @@ class Params:
         parser.add_argument('--nc', type=int, default=3)
         parser.add_argument('--num_epoch', type=int, default=50)
         parser.add_argument('--test_freq', type=int, default=3)
-        parser.add_argument('--side', type=str, default='cacheline', choices=['cacheline', 'cacheline_index', 'pagetable'])
+        parser.add_argument('--side', type=str, choices=['cacheline32', 'pagetable32', 'cacheline', 'cacheline_encode'], required=True)
         parser.add_argument('--cpu', type=str, default='intel', choices=['intel', 'amd'])
         parser.add_argument('--cache', type=str, default='dcache', choices=['dcache', 'icache'])
         parser.add_argument('--image_size', type=int, default=128)
@@ -53,7 +53,7 @@ class Params:
         parser.add_argument('--vae_lr', type=float, default=1e-4)
 
         self.args = parser.parse_args()
-        self.args.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.args.device = torch.device('cuda:0')
         self.parser = parser
         self.get_data_path('data_path.json')
 

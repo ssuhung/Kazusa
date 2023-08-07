@@ -2,9 +2,10 @@
    "CelebA":{
       "media":"data/CelebA_crop128/image/",
       "pin":"data/CelebA_crop128/pin/raw/",
+      "cacheline32":"data/CelebA_crop128/pin/cacheline32/",
+      "pagetable32":"data/CelebA_crop128/pin/pagetable32/",
       "cacheline":"data/CelebA_crop128/pin/cacheline/",
-      "cacheline_index":"data/CelebA_crop128/pin/cacheline_index/",
-      "pagetable":"data/CelebA_crop128/pin/pagetable/",
+      "cacheline_encode":"data/CelebA_crop128/pin/raw/",
       "pp-intel-dcache":"data/CelebA_crop128/pp_noConcat/intel-dcache/",
       "pp-intel-icache":"data/CelebA_crop128/pp/intel-icache/",
       "ID_path":"data/CelebA_crop128/CelebA_ID_dict.json",
