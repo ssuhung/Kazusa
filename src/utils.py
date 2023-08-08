@@ -8,37 +8,6 @@ import torchvision
 
 irange = range
 
-class FullToSide:
-
-    def __init__(self):
-        self.MASK32 = 0xFFFF_FFFF
-        self.MASK_ASLR = 0xFFF
-
-    def to_cacheline32(self, addr, ASLR=False):
-        if ASLR:
-            addr = addr & self.MASK_ASLR
-        return (addr & self.MASK32) >> 6
-
-    def to_cachebank32(self, addr, ASLR=False):
-        if ASLR:
-            addr = addr & self.MASK_ASLR
-        return (addr & self.MASK32) >> 2
-
-    def to_pagetable32(self, addr):
-        return (addr & self.MASK32) >> 12
-
-    def to_cacheline64(self, addr, ASLR=False):
-        if ASLR:
-            addr = addr & self.MASK_ASLR
-        return addr >> 6
-
-    def to_cachebank64(self, addr, ASLR=False):
-        if ASLR:
-            addr = addr & self.MASK_ASLR
-        return addr >> 2
-
-    def to_pagetable64(self, addr):
-        return addr >> 12
 
 class GradSaver:
     def __init__(self):
@@ -57,18 +26,6 @@ def clip_gradient(optimizer, grad_clip):
         for param in group['params']:
             if param.grad is not None:
                 param.grad.data.clamp_(-grad_clip, grad_clip)
-
-def adjust_learning_rate(optimizer, shrink_factor):
-    """
-    Shrinks learning rate by a specified factor.
-    :param optimizer: optimizer whose learning rate must be shrunk.
-    :param shrink_factor: factor in interval (0, 1) to multiply learning rate with.
-    """
-
-    print("\nDECAYING learning rate.")
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = param_group['lr'] * shrink_factor
-    print("The new learning rate is %f\n" % (optimizer.param_groups[0]['lr'],))
 
 def accuracy(scores, targets, k=1):
     """
@@ -97,16 +54,10 @@ def load_params(json_file):
     with open(json_file) as f:
         return json.load(f)
 
-def get_batch(data_loader):
-    while True:
-        for batch in data_loader:
-            yield batch
-
 class NormalizeInverse(torchvision.transforms.Normalize):
     """
     Undoes the normalization and returns the reconstructed images in the input domain.
     """
-
     def __init__(self, mean, std):
         mean = torch.as_tensor(mean)
         std = torch.as_tensor(std)
@@ -129,36 +80,6 @@ def get_widgets():
     return ['Progress: ', progressbar.Percentage(), ' ', 
             progressbar.Bar('#'), ' ', 'Count: ', progressbar.Counter(), ' ',
             progressbar.Timer(), ' ', progressbar.ETA()]
-
-def build_vocab(vocab_path, token_list):
-    if os.path.exists(vocab_path):
-        with open(vocab_path, 'r') as f:
-            vocab = json.load(f)
-            token_vocab = vocab['token']
-            index_vocab = vocab['index']
-    else:
-        token_vocab = {}
-        index_vocab = {}
-        count = {}
-        cur_index = 0
-        for token in token_list:
-            for t in token:
-                if t in count.keys():
-                    count[t] += 1
-                    if count[t] == 10:
-                        token_vocab[t] = cur_index
-                        index_vocab[cur_index] = t
-                        cur_index += 1
-                else:
-                    count[t] = 1
-        for t in ['<UNK>', '<START>', '<END>']:
-            token_vocab[t] = cur_index
-            index_vocab[cur_index] = t
-            cur_index += 1
-        with open(vocab_path, 'w') as f:
-            json.dump({'token': token_vocab,
-                       'index': index_vocab}, f)
-    return token_vocab, index_vocab
 
 def clear_progressbar():
     # moves up 3 lines
@@ -275,7 +196,11 @@ def save_image(tensor, filename, nrow=8, padding=2,
     im = Image.fromarray(ndarr)
     im.save(filename)
 
-def reparameterize(mu, logvar):
-    logvar = logvar.mul(0.5).exp_()
-    eps = logvar.data.new(logvar.size()).normal_()
-    return eps.mul(logvar).add_(mu)
+class Printer:
+    output_file = None
+
+    @classmethod
+    def print(cls, msg):
+        with open(cls.output_file, 'a') as f:
+            f.write(msg + '\n')
+        print(msg)

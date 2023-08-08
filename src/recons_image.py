@@ -9,6 +9,7 @@ import models
 import utils
 from data_loader import *
 from params import Params
+from utils import Printer
 
 
 class ImageEngine:
@@ -59,7 +60,7 @@ class ImageEngine:
                         )
 
     def save_model(self, path):
-        print('Saving Model on %s ...' % (path))
+        Printer.print('Saving Model on %s ...' % (path))
         state = {
             'enc': self.enc.state_dict(),
             'dec': self.dec.state_dict(),
@@ -209,15 +210,15 @@ class ImageEngine:
 
             progress.finish()
             utils.clear_progressbar()
-            print('----------------------------------------')
-            print('Epoch: %d' % self.epoch)
-            print('Costs Time: %.2f s' % (time.time() - start_time))
-            print('Recons Loss: %f' % (record.mean()))
-            print('Loss of G: %f' % (record_G.mean()))
-            print('Loss of D: %f' % (record_D.mean()))
-            print('Loss & Acc of C ID real: %f & %f' % (record_C_real.mean(), record_C_real_acc.mean()))
-            print('Loss & Acc of C ID fake: %f & %f' % (record_C_fake.mean(), record_C_fake_acc.mean()))
-            print('D(x) is: %f, D(G(z1)) is: %f, D(G(z2)) is: %f' % (D_x, D_G_z1, D_G_z2))
+            Printer.print('----------------------------------------')
+            Printer.print('Epoch: %d' % self.epoch)
+            Printer.print('Costs Time: %.2f s' % (time.time() - start_time))
+            Printer.print('Recons Loss: %f' % (record.mean()))
+            Printer.print('Loss of G: %f' % (record_G.mean()))
+            Printer.print('Loss of D: %f' % (record_D.mean()))
+            Printer.print('Loss & Acc of C ID real: %f & %f' % (record_C_real.mean(), record_C_real_acc.mean()))
+            Printer.print('Loss & Acc of C ID fake: %f & %f' % (record_C_fake.mean(), record_C_fake_acc.mean()))
+            Printer.print('D(x) is: %f, D(G(z1)) is: %f, D(G(z2)) is: %f' % (D_x, D_G_z1, D_G_z2))
             self.save_output(decoded, os.path.join(self.args.image_root, ('train_%03d.jpg' % self.epoch)))
             self.save_output(image, os.path.join(self.args.image_root, ('train_%03d_target.jpg' % self.epoch)))
             
@@ -242,27 +243,29 @@ class ImageEngine:
 
             progress.finish()
             utils.clear_progressbar()
-            print('----------------------------------------')
-            print('Test.')
-            print('Costs Time: %.2f s' % (time.time() - start_time))
-            print('Recons Loss: %f' % (record.mean()))
+            Printer.print('----------------------------------------')
+            Printer.print('Test.')
+            Printer.print('Costs Time: %.2f s' % (time.time() - start_time))
+            Printer.print('Recons Loss: %f' % (record.mean()))
 
 if __name__ == '__main__':
     args = Params().parse()
+    assert args.dataset == 'CelebA'
 
     args.trace_c = 6
     args.trace_w = 256
     args.nz = 128
 
-    print(args.exp_name)
-    args.seed = random.randint(1, 10000)
-    print('Manual Seed: %d' % args.seed)
-    torch.manual_seed(args.seed)
+    args.image_root = os.path.join(args.output_root, args.exp_name, 'image')
+    args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt')
+    Printer.output_file = os.path.join(args.output_root, args.exp_name, 'output.out')
 
-    utils.make_path(args.output_root)
+    Printer.print(f'Experiment Name: { args.exp_name }')
+    args.seed = random.randint(1, 10000)
+    Printer.print('Manual Seed: %d' % args.seed)
+    torch.manual_seed(args.seed)
     
     loader = DataLoader(args)
-    assert args.dataset == 'CelebA'
     train_dataset = CelebaDataset(
                     img_dir=args.data_path[args.dataset]['media'], 
                     npz_dir=args.data_path[args.dataset][args.side],
@@ -291,9 +294,6 @@ if __name__ == '__main__':
     train_loader = loader.get_loader(train_dataset)
     test_loader = loader.get_loader(test_dataset, shuffle=False)
 
-    args.image_root = os.path.join(args.output_root, args.exp_name, 'image')
-    args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt')
-
     if os.path.exists(args.output_root + args.exp_name):
         ans = input(f'Experiment folder "{ args.exp_name }" already exist, do you want to continue training or overwrite the result? (continue/overwrite/ctrl+c) ')
         if ans.lower() == 'continue':
@@ -314,5 +314,5 @@ if __name__ == '__main__':
         if i % args.test_freq == 0:
             engine.test(test_loader)
             engine.save_model((args.ckpt_root + '/%03d.pth') % (i + 1))
-        engine.save_state(os.path.join(args.output_root, 'temp_state'))
+        engine.save_state(os.path.join(args.output_root, 'temp_state.pth'))
     engine.save_model((args.ckpt_root + '/final.pth'))
