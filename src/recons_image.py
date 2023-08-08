@@ -4,11 +4,11 @@ import time
 import progressbar
 import torch
 import torch.nn as nn
+
+import models
 import utils
 from data_loader import *
 from params import Params
-
-import models
 
 
 class ImageEngine:
@@ -27,7 +27,7 @@ class ImageEngine:
         print('Initializing Model and Optimizer...')
         # self.enc = models.__dict__['attn_trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=self.args.trace_c)
         # self.enc = models.__dict__['trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=self.args.trace_c)
-        self.enc = models.TraceEncoder_1DCNN(dim=self.args.nz)
+        self.enc = models.TraceEncoder_1DCNN_encode(input_len=300000, dim=self.args.nz)
         self.enc = self.enc.to(self.args.device)
 
         self.dec = models.__dict__['ResDecoder%d' % self.args.image_size](dim=self.args.nz, nc=self.args.nc)
@@ -77,6 +77,34 @@ class ImageEngine:
         self.E.load_state_dict(ckpt['E'])
         self.D.load_state_dict(ckpt['D'])
         self.C.load_state_dict(ckpt['C'])
+
+    def save_state(self, path):
+        torch.save({
+            'epoch': self.epoch,
+            'enc': self.enc.state_dict(),
+            'dec': self.dec.state_dict(),
+            'E': self.E.state_dict(),
+            'D': self.D.state_dict(),
+            'C': self.C.state_dict(),
+            'optim': self.optim.state_dict(),
+            'optim_D': self.optim_D.state_dict(),
+            'loss': (self.mse, self.l1, self.bce, self.ce),
+            'seed': self.args.seed
+            }, path)
+
+    def load_state(self, path):
+        checkpoint = torch.load(path)
+        self.enc.load_state_dict(checkpoint['enc'])
+        self.dec.load_state_dict(checkpoint['dec'])
+        self.E.load_state_dict(checkpoint['E'])
+        self.D.load_state_dict(checkpoint['D'])
+        self.C.load_state_dict(checkpoint['C'])
+        self.optim.load_state_dict(checkpoint['optim'])
+        self.optim_D.load_state_dict(checkpoint['optim_D'])
+        self.epoch = checkpoint['epoch']
+        self.mse, self.l1, self.bce, self.ce = checkpoint['loss']
+        self.args.seed = checkpoint['seed']
+        torch.manual_seed(self.args.seed)
 
     def save_output(self, output, path):
         utils.save_image(output.data, path, normalize=True)
@@ -178,6 +206,7 @@ class ImageEngine:
                 record.add(recons_err.item())
                 record_C_fake.add(errC_fake)
                 record_C_fake_acc.add(utils.accuracy(pred_fake, ID))
+
             progress.finish()
             utils.clear_progressbar()
             print('----------------------------------------')
@@ -189,8 +218,8 @@ class ImageEngine:
             print('Loss & Acc of C ID real: %f & %f' % (record_C_real.mean(), record_C_real_acc.mean()))
             print('Loss & Acc of C ID fake: %f & %f' % (record_C_fake.mean(), record_C_fake_acc.mean()))
             print('D(x) is: %f, D(G(z1)) is: %f, D(G(z2)) is: %f' % (D_x, D_G_z1, D_G_z2))
-            self.save_output(decoded, (self.args.image_root + 'train_%03d.jpg') % self.epoch)
-            self.save_output(image, (self.args.image_root + 'train_%03d_target.jpg') % self.epoch)
+            self.save_output(decoded, os.path.join(self.args.image_root, ('train_%03d.jpg' % self.epoch)))
+            self.save_output(image, os.path.join(self.args.image_root, ('train_%03d_target.jpg' % self.epoch)))
             
     def test(self, data_loader):
         self.set_eval()
@@ -208,8 +237,8 @@ class ImageEngine:
                 record.add(recons_err.item())
 
                 if i == 0:
-                    self.save_output(decoded, (self.args.image_root + 'test_%03d.jpg') % self.epoch)
-                    self.save_output(image, (self.args.image_root + 'test_%03d_target.jpg') % self.epoch)
+                    self.save_output(decoded, os.path.join(self.args.image_root, ('test_%03d.jpg' % self.epoch)))
+                    self.save_output(image, os.path.join(self.args.image_root, ('test_%03d_target.jpg' % self.epoch)))
 
             progress.finish()
             utils.clear_progressbar()
@@ -226,23 +255,13 @@ if __name__ == '__main__':
     args.nz = 128
 
     print(args.exp_name)
-    manual_seed = random.randint(1, 10000)
-    print('Manual Seed: %d' % manual_seed)
-
-    torch.manual_seed(manual_seed)
-    torch.cuda.manual_seed_all(manual_seed)
+    args.seed = random.randint(1, 10000)
+    print('Manual Seed: %d' % args.seed)
+    torch.manual_seed(args.seed)
 
     utils.make_path(args.output_root)
-    utils.make_path(args.output_root + args.exp_name)
-
-    args.image_root = args.output_root + args.exp_name + '/image/'
-    args.ckpt_root = args.output_root + args.exp_name + '/ckpt/'
-
-    utils.make_path(args.image_root)
-    utils.make_path(args.ckpt_root)
-
+    
     loader = DataLoader(args)
-
     assert args.dataset == 'CelebA'
     train_dataset = CelebaDataset(
                     img_dir=args.data_path[args.dataset]['media'], 
@@ -272,9 +291,28 @@ if __name__ == '__main__':
     train_loader = loader.get_loader(train_dataset)
     test_loader = loader.get_loader(test_dataset, shuffle=False)
 
-    for i in range(args.num_epoch):
+    args.image_root = os.path.join(args.output_root, args.exp_name, 'image')
+    args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt')
+
+    if os.path.exists(args.output_root + args.exp_name):
+        ans = input(f'Experiment folder "{ args.exp_name }" already exist, do you want to continue training or overwrite the result? (continue/overwrite/ctrl+c) ')
+        if ans.lower() == 'continue':
+            print("Continue training")
+            engine.load_state(os.path.join(args.output_root, 'temp_state'))
+        elif ans.lower() == 'overwrite':
+            print("Overwrite previous experiment result")
+        else:
+            print("Unknown input. Program terminate")
+            exit(1)
+    else:
+        os.mkdir(os.path.join(args.output_root, args.exp_name))
+        utils.make_path(args.image_root)
+        utils.make_path(args.ckpt_root)
+
+    for i in range(engine.epoch, args.num_epoch):
         engine.train(train_loader)
         if i % args.test_freq == 0:
             engine.test(test_loader)
-            engine.save_model((args.ckpt_root + '%03d.pth') % (i + 1))
-    engine.save_model((args.ckpt_root + 'final.pth'))
+            engine.save_model((args.ckpt_root + '/%03d.pth') % (i + 1))
+        engine.save_state(os.path.join(args.output_root, 'temp_state'))
+    engine.save_model((args.ckpt_root + '/final.pth'))

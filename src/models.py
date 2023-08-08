@@ -385,8 +385,9 @@ class attn_trace_encoder_256(nn.Module):
 class TraceEncoder_1DCNN(nn.Module):
     """
     Modified from attn_trace_encoder_256
+    Accept input: (batch size x 393,216)
     """
-    def __init__(self, dim):
+    def __init__(self, input_len, dim):
         super().__init__()
         self.dim = dim
         nf = 64
@@ -425,15 +426,54 @@ class TraceEncoder_1DCNN(nn.Module):
     def forward(self, x):
         x = self.c0(F.normalize(x))
         x = torch.unsqueeze(x, dim=1)
-        # h1 = self.c1(x)
-        # h2 = self.c2(h1)
-        # h3 = self.c3(h2)
-        # h4 = self.c4(h3)
-        # h5 = self.c5(h4)
-        # h6 = self.c6(h5)
-        # h7 = self.c7(h6)
         h7 = self.network(x)
         return h7.view(-1, self.dim)
+
+class TraceEncoder_1DCNN_encode(nn.Module):
+    """
+    Modified from attn_trace_encoder_256
+    Accept input: (batch size x 300,000 x 64)
+    """
+    def __init__(self, input_len, dim):
+        super().__init__()
+        self.dim = dim
+        nf = 64
+        self.network = nn.Sequential(
+            # batch size x 64 x input_len
+            dcgan_conv_1d(64, nf, 6), # 會不會太大？
+            # batch size x nf x (input_len / 4 = 75,000)
+            dcgan_conv_1d(nf, nf, 4),
+            # batch size x nf x (input_len / 16 = 18,750)
+            dcgan_conv_1d(nf, nf * 2, 4),
+            # batch size x nf*2 x (floor(18,750/4) = 4,687)
+            dcgan_conv_1d(nf * 2, nf * 4, 4),
+            # batch size x nf*4 x (floor(4,687/4) = 1,171)
+            dcgan_conv_1d(nf * 4, nf * 8, 4),
+            # batch size x nf*8 x (floor(1,171/4) = 292)
+            dcgan_conv_1d(nf * 8, nf * 8, 4),
+            # batch size x nf*8 x (floor(292/4) = 73)
+            # self.c7 = nn.Sequential(
+            #         nn.Conv1d(nf * 8, dim, 96), 
+            #         # batch size x dim x 1
+            #         nn.BatchNorm1d(dim),
+            #         nn.Tanh()
+            #         )
+            nn.Sequential(
+                nn.Flatten(),
+                # batch size x nf*8*106
+                nn.Linear(nf*8*73, 128),
+                # batch size x 128
+                nn.BatchNorm1d(128),
+            )
+        )
+
+        self.apply(weights_init)
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1)
+        out = self.network(x)
+        return out.view(-1, self.dim)
+        # return torch.rand(50, 128).to('cuda:0')
 
 class trace_encoder_256(nn.Module):
     """
