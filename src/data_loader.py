@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 import utils
 from PIL import Image
 from torch.utils.data import Dataset
-
+from utils import Printer
 
 def side_to_bound(side):
     if side == 'cacheline32':
@@ -38,7 +38,7 @@ def full_to_cacheline_index_encode(full: np.array):
 
 class CelebaDataset(Dataset):
     def __init__(self, npz_dir, img_dir, ID_path, split,
-                image_size, side, trace_c, trace_w,
+                image_size, side, trace_c, trace_w, leng,
                 op=None, k=None):
         super().__init__()
         self.npz_dir = ('%s%s/' % (npz_dir, split))
@@ -48,8 +48,8 @@ class CelebaDataset(Dataset):
         self.op = op
         self.k = k
 
-        self.npz_list = sorted(os.listdir(self.npz_dir))[:80000]
-        self.img_list = sorted(os.listdir(self.img_dir))[:80000]
+        self.npz_list = sorted(os.listdir(self.npz_dir))[:leng]
+        self.img_list = sorted(os.listdir(self.img_dir))[:leng]
 
         self.transform = transforms.Compose([
                        transforms.Resize(image_size),
@@ -60,13 +60,13 @@ class CelebaDataset(Dataset):
 
         # self.v_max, self.v_min = side_to_bound(side)
         
-        print('Total %d Data Points.' % len(self.npz_list))
+        Printer.print(f'Total { len(self.npz_list) } Data Points.')
 
         with open(ID_path, 'r') as f:
             self.ID_dict = json.load(f)
 
         self.ID_cnt = len(set(self.ID_dict.values()))
-        print('Total %d ID.' % self.ID_cnt)
+        Printer.print('Total %d ID.' % self.ID_cnt)
 
     def __len__(self):
         return len(self.npz_list)

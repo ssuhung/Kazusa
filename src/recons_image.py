@@ -4,6 +4,7 @@ import time
 import progressbar
 import torch
 import torch.nn as nn
+from torch.profiler import ProfilerActivity, profile, record_function
 
 import models
 import utils
@@ -188,7 +189,13 @@ class ImageEngine:
                 # train G with D and C
                 self.zero_grad_G()
 
+                # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], with_stack=True) as prof:
+                    # with record_function("model_inference"):
                 encoded = self.enc(trace)
+                # print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=2))
+                # prof.export_chrome_trace("trace.json")
+                # exit()
+
                 noise = torch.randn(bs, self.args.nz).to(self.args.device)
                 decoded = self.dec(encoded + 0.05 * noise)
 
@@ -274,7 +281,8 @@ if __name__ == '__main__':
                     trace_c=args.trace_c,
                     trace_w=args.trace_w,
                     image_size=args.image_size,
-                    side=args.side
+                    side=args.side,
+                    leng=80000
                 )
     args.n_class = train_dataset.ID_cnt
 
@@ -286,7 +294,8 @@ if __name__ == '__main__':
                     trace_c=args.trace_c,
                     trace_w=args.trace_w,
                     image_size=args.image_size,
-                    side=args.side
+                    side=args.side,
+                    leng=80000
                 )
 
     engine = ImageEngine(args)
@@ -314,5 +323,6 @@ if __name__ == '__main__':
         if i % args.test_freq == 0:
             engine.test(test_loader)
             engine.save_model((args.ckpt_root + '/%03d.pth') % (i + 1))
-        engine.save_state(os.path.join(args.output_root, 'temp_state.pth'))
+        engine.save_state(os.path.join(args.output_root, args.exp_name, 'temp_state.pth'))
     engine.save_model((args.ckpt_root + '/final.pth'))
+    os.remove(os.path.join(args.output_root, args.exp_name, 'temp_state.pth'))
