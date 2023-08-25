@@ -27,24 +27,25 @@ def side_to_bound(side):
 def to_cacheline(addr):
     return (abs(addr) & 0xFFF) >> 6
 
-def full_to_cacheline_index_encode(full: np.array):
-    assert full.shape[0] < 300000, "Error: trace length longer than padding length"
-    arr = np.zeros((300000, 64), dtype=np.float16)
+def full_to_cacheline_index_encode(full: np.array, trace_len: int):
+    assert full.shape[0] < trace_len, "Error: trace length longer than padding length"
+    arr = np.zeros((trace_len, 64), dtype=np.float16)
     arr_cacheline = to_cacheline(full)
-    result = np.where(full > 0, 1., -1.)
-    arr[np.arange(len(arr_cacheline)), arr_cacheline] = result
+    # result = np.where(full > 0, 1., -1.)
+    arr[np.arange(len(arr_cacheline)), arr_cacheline] = 1
 
     return arr.astype(np.float32)
 
 class CelebaDataset(Dataset):
     def __init__(self, npz_dir, img_dir, ID_path, split,
-                image_size, side, trace_c, trace_w, leng,
-                op=None, k=None):
+                image_size, side, trace_c, trace_w,
+                trace_len, leng=None, op=None, k=None):
         super().__init__()
         self.npz_dir = ('%s%s/' % (npz_dir, split))
         self.img_dir = ('%s%s/' % (img_dir, split))
         self.trace_c = trace_c
         self.trace_w = trace_w
+        self.trace_len = trace_len
         self.op = op
         self.k = k
 
@@ -60,13 +61,10 @@ class CelebaDataset(Dataset):
 
         # self.v_max, self.v_min = side_to_bound(side)
         
-        Printer.print(f'Total { len(self.npz_list) } Data Points.')
+        Printer.print(f'{split.capitalize()} set: {len(self.npz_list)} Data Points.')
 
         with open(ID_path, 'r') as f:
             self.ID_dict = json.load(f)
-
-        self.ID_cnt = len(set(self.ID_dict.values()))
-        Printer.print('Total %d ID.' % self.ID_cnt)
 
     def __len__(self):
         return len(self.npz_list)
@@ -74,7 +72,7 @@ class CelebaDataset(Dataset):
     def __getitem__(self, index):
         npz_name = self.npz_list[index]
         prefix = npz_name.split('.')[0]
-        # prefix = int('-'.join(npz_name.split('-')[1:]).split('.')[0])    
+        # prefix = int('-'.join(npz_name.split('-')[1:]).split('.')[0])
         suffix = '.jpg'
         img_name = prefix + suffix
         ID = int(self.ID_dict[img_name]) - 1
@@ -83,7 +81,7 @@ class CelebaDataset(Dataset):
         trace = npz['arr_0']
         # trace = np.pad(trace, (0, 93216), mode='constant')  # Pad 256*256*6 - 300,000 = 93216 zeros
         # trace = trace.astype(np.float32)
-        trace = full_to_cacheline_index_encode(trace)
+        trace = full_to_cacheline_index_encode(trace, self.trace_len)
 
         if self.op == 'shift':
             trace = np.concatenate([trace[self.k:], trace[:self.k]])
@@ -116,7 +114,7 @@ class ImageDataset(Dataset):
     def __init__(self, args, split):
         super().__init__()
         self.args = args
-        self.img_dir = args.image_dir + ('train/' if split == 'train' else 'test/')
+        self.img_dir = args.image_dir + split + '/'
 
         self.img_list = sorted(os.listdir(self.img_dir))
 
@@ -127,7 +125,7 @@ class ImageDataset(Dataset):
                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                ])
         
-        print('Total %d Data Points.' % len(self.img_list))
+        print(f'{split.capitalize()} set: {len(self.img_list)} Data Points.')
 
     def __len__(self):
         return len(self.img_list)

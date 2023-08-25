@@ -13,6 +13,19 @@
       "split":[
          "train",
          "test"
-      ]
+      ],
+      "max_trace_len": 300000
+   },
+   "Generalv1":{
+      "media":"data/Generalv1/image/",
+      "pin":"data/Generalv1/pin/raw/",
+      "cacheline_encode":"data/Generalv1/pin/raw/",
+      "ID_path":"data/Generalv1/img_category.json",
+      "split":[
+         "train",
+         "test",
+         "validation"
+      ],
+      "max_trace_len": 322702
    }
 }

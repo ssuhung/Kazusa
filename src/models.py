@@ -473,7 +473,6 @@ class TraceEncoder_1DCNN_encode(nn.Module):
         x = x.permute(0, 2, 1)
         out = self.network(x)
         return out.view(-1, self.dim)
-        # return torch.rand(50, 128).to('cuda:0')
 
 class trace_encoder_256(nn.Module):
     """

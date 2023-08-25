@@ -45,15 +45,17 @@ class Params:
         parser.add_argument('--lms_h', type=int, default=44)
         parser.add_argument('--max_db', type=float, default=45)
         parser.add_argument('--min_db', type=float, default=-100)
-        parser.add_argument('--num_ID', type=int, default=-1)
-        parser.add_argument('--num_content', type=int, default=-1)
         # Pre-train VAE specific parameters
         parser.add_argument('--vae_epoch', type=int, default=100)
         parser.add_argument('--kld_weight', type=float, default=0.00025)
         parser.add_argument('--vae_lr', type=float, default=1e-4)
 
         self.args = parser.parse_args()
-        self.args.device = torch.device('cuda:0')
+        if torch.cuda.is_available():
+            self.args.device = torch.device('cuda')
+        else:
+            print("Warning: CUDA is not available, the calculation will be unreasonably slow")
+            self.args.device = torch.device('cpu')
         self.parser = parser
         self.get_data_path('data_path.json')
 
