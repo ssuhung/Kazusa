@@ -81,6 +81,11 @@ class VAE_LP:
                 self.optimizer.step()
 
                 record_image.add(loss)
+
+                if i == 0:
+                    utils.save_image(image.data, ('%s/image/train/%03d_target.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
+                    utils.save_image(image2image.data, ('%s/image/train/%03d_recon.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
+
             progress.finish()
             utils.clear_progressbar()
             print('----------------------------------------')
@@ -88,8 +93,6 @@ class VAE_LP:
             print('Costs time: %.2fs' % (time.time() - start_time))
             print('Loss of Image to Image: %f' % (record_image.mean()))
             print('----------------------------------------')
-            utils.save_image(image.data, ('%s/image/train/%03d_target.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
-            utils.save_image(image2image.data, ('%s/image/train/%03d_recon.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
 
     def test(self, data_loader):
         print('Testing...')
@@ -111,6 +114,11 @@ class VAE_LP:
                 loss = recons_loss + kld_weight * kld_loss
 
                 record_image.add(loss)
+
+                if i == 0:
+                    utils.save_image(image.data, ('%s/image/test/%03d_target.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
+                    utils.save_image(image2image.data, ('%s/image/test/%03d_recon.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
+
             progress.finish()
             utils.clear_progressbar()
             print('----------------------------------------')
@@ -118,8 +126,6 @@ class VAE_LP:
             print('Costs time: %.2fs' % (time.time() - start_time))
             print('Loss of Image to Image: %f' % (record_image.mean()))
             print('----------------------------------------')
-            utils.save_image(image.data, ('%s/image/test/%03d_target.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
-            utils.save_image(image2image.data, ('%s/image/test/%03d_recon.jpg' % (self.args.vae_dir, self.epoch)), normalize=True)
 
     def inference(self, x):
         with torch.no_grad():

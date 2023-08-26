@@ -1,6 +1,9 @@
+from math import floor
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from cbam import CBAM
 
 
@@ -432,12 +435,13 @@ class TraceEncoder_1DCNN(nn.Module):
 class TraceEncoder_1DCNN_encode(nn.Module):
     """
     Modified from attn_trace_encoder_256
-    Accept input: (batch size x 300,000 x 64)
+    Accept input: (batch size x input_len x 64)
     """
     def __init__(self, input_len, dim):
         super().__init__()
         self.dim = dim
         nf = 64
+        l = floor(floor(floor(floor(floor(floor(input_len / 4) / 4) / 4) / 4) / 4) / 4)
         self.network = nn.Sequential(
             # batch size x 64 x input_len
             dcgan_conv_1d(64, nf, 6), # 會不會太大？
@@ -452,15 +456,9 @@ class TraceEncoder_1DCNN_encode(nn.Module):
             # batch size x nf*8 x (floor(1,171/4) = 292)
             dcgan_conv_1d(nf * 8, nf * 8, 4),
             # batch size x nf*8 x (floor(292/4) = 73)
-            # self.c7 = nn.Sequential(
-            #         nn.Conv1d(nf * 8, dim, 96), 
-            #         # batch size x dim x 1
-            #         nn.BatchNorm1d(dim),
-            #         nn.Tanh()
-            #         )
             nn.Sequential(
                 nn.Flatten(),
-                # batch size x nf*8*106
+                # batch size x nf*8*73 or 79
                 nn.Linear(nf*8*73, 128),
                 # batch size x 128
                 nn.BatchNorm1d(128),

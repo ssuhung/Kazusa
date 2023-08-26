@@ -12,11 +12,10 @@ class Params:
         else:
             default_output = os.path.join(os.environ.get('MANIFOLD_SCA'), 'output') + '/'
         parser.add_argument('--output_root', type=str, default=default_output)
-        parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA'])
+        parser.add_argument('--dataset', type=str, choices=['CelebA', 'Generalv1'])
         parser.add_argument('--trace_c', type=int, default=-1)
         parser.add_argument('--trace_w', type=int, default=-1)
         parser.add_argument('--batch_size', type=int, default=50)
-        parser.add_argument('--num_workers', type=int, default=4)
         parser.add_argument('--lr', type=float, default=2e-4)
         parser.add_argument('--beta1', type=float, default=0.5)
         parser.add_argument('--nz', type=int, default=512)
@@ -34,6 +33,7 @@ class Params:
         parser.add_argument('--noise_pp_k', type=float, default=0)
         parser.add_argument('--n_class', type=int, default=-1)
         parser.add_argument('--lambd', type=float, default=100)
+        parser.add_argument('--alpha', type=float, default=0.84)
         parser.add_argument('--use_refiner', type=int, default=0, choices=[0, 1])
         parser.add_argument('--embed_dim', type=int, default=300)
         parser.add_argument('--attention_dim', type=int, default=512)
@@ -70,7 +70,7 @@ class Params:
             for dataset_name in data_path.keys():
                 item = data_path[dataset_name]
                 for k in item.keys():
-                    if k == 'split':
+                    if k in ['split', 'max_trace_len']:
                         continue
                     item[k] = os.path.join(root_dir, item[k])
         self.args.data_path = data_path

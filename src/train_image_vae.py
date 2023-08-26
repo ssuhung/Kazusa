@@ -6,9 +6,9 @@ from vae_lp import VAE_LP
 
 args = Params().parse()
 
-args.image_dir = "/home/ssuhung/Manifold-SCA/data/CelebA_crop128/image/"
-args.vae_dir = "/home/ssuhung/Manifold-SCA/output/ICLR2021/"
-args.vae_dim = 128
+args.image_dir = "/home/ssuhung/Manifold-SCA/data/Generalv1/image/"
+args.vae_dir = "/home/ssuhung/Manifold-SCA/output/Generalv1VAE_256/"
+args.vae_dim = 256
 
 args.image_root = args.vae_dir + 'image/'
 args.ckpt_root = args.vae_dir + 'ckpt/'
@@ -25,7 +25,7 @@ train_dataset = ImageDataset(args, split='train')
 test_dataset = ImageDataset(args, split='test')
 
 train_loader = data_loader.get_loader(train_dataset)
-test_loader = data_loader.get_loader(test_dataset)
+test_loader = data_loader.get_loader(test_dataset, shuffle=False)
 
 for i in range(args.vae_epoch):
     vae.train(train_loader)
