@@ -93,7 +93,9 @@ class ImageEngine:
             'optim': self.optim.state_dict(),
             'optim_D': self.optim_D.state_dict(),
             'loss': (self.mse, self.l1, self.bce, self.ce, self.ssim),
-            'seed': self.args.seed
+            'seed': self.args.seed,
+            'train_losses': self.train_losses,
+            'test_losses': self.test_losses
             }, path)
 
     def load_state(self, path):
@@ -108,6 +110,8 @@ class ImageEngine:
         self.epoch = checkpoint['epoch']
         self.mse, self.l1, self.bce, self.ce, self.ssim = checkpoint['loss']
         self.args.seed = checkpoint['seed']
+        self.train_losses = checkpoint['train_losses']
+        self.test_losses = checkpoint['test_losses']
         torch.manual_seed(self.args.seed)
 
     def save_output(self, output, path):
@@ -224,7 +228,7 @@ class ImageEngine:
 
             progress.finish()
             utils.clear_progressbar()
-            self.train_losses.append((self.epoch, record.mean()))
+            self.train_losses.append(record.mean())
             Printer.print('----------------------------------------')
             Printer.print(f'Epoch: {self.epoch}')
             Printer.print(f'Costs Time: {(time.time() - start_time):.2f} s')
@@ -262,12 +266,18 @@ class ImageEngine:
 
             progress.finish()
             utils.clear_progressbar()
-            self.test_losses.append((self.epoch, record.mean()))
+            self.test_losses.append(record.mean())
             Printer.print('----------------------------------------')
             Printer.print('Test')
             Printer.print(f'Costs Time: {(time.time() - start_time):.2f} s')
             Printer.print(f'MSE Loss: {(record_mse.mean()):.6f}')
             Printer.print(f'Recons Loss: {(record.mean()):.6f}')
+
+    def print_min_loss(self):
+        train_np = np.array(self.train_losses)
+        test_np = np.array(self.test_losses)
+        Printer.print(f'Minimum training loss: {(train_np.min().item()):.6f} in epoch {train_np.argmin().item() + 1}')
+        Printer.print(f'Minimum testing loss: {(test_np.min().item()):.6f} in epoch {test_np.argmin().item() + 1}')
 
 if __name__ == '__main__':
     args = Params().parse()
@@ -343,4 +353,5 @@ if __name__ == '__main__':
         engine.save_state(os.path.join(args.output_root, args.exp_name, 'temp_state.pth'))
     engine.save_model((args.ckpt_root + '/final.pth'))
     os.remove(os.path.join(args.output_root, args.exp_name, 'temp_state.pth'))
-    print('Training finished!')
+    Printer.print('Training finished!')
+    engine.print_min_loss()
