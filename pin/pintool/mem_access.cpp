@@ -18,8 +18,6 @@ using std::dec;
 using std::endl;
 ofstream outFile;
 
-// string TARGET_IMG = "ffmpeg_g";
-// string TARGET_RTN = "";
 
 static std::unordered_map<ADDRINT, std::string> str_of_ins_at;
 static std::unordered_map<ADDRINT, std::string> str_of_func_at;
@@ -49,7 +47,6 @@ VOID Routine(RTN rtn, VOID *v)
 {
     string image_name = StripPath(IMG_Name(SEC_Img(RTN_Sec(rtn))).c_str());
 
-    // if (strcmp(image_name.c_str(), TARGET_IMG.c_str()) == 0)
     if (true)
     {
         RTN_Open(rtn);
@@ -70,7 +67,6 @@ VOID Routine(RTN rtn, VOID *v)
                 {
                     if (INS_MemoryOperandIsRead(ins, memOp))
                     {
-                        // outFile << rtn_name << " ";
                         INS_InsertPredicatedCall(
                             ins, IPOINT_BEFORE, (AFUNPTR)RecordMemRead,
                             IARG_INST_PTR,
@@ -82,7 +78,6 @@ VOID Routine(RTN rtn, VOID *v)
                     // In that case we instrument it once for read and once for write.
                     if (INS_MemoryOperandIsWritten(ins, memOp))
                     {
-                        // outFile << rtn_name << " ";
                         INS_InsertPredicatedCall(
                             ins, IPOINT_BEFORE, (AFUNPTR)RecordMemWrite,
                             IARG_INST_PTR,
@@ -108,18 +103,14 @@ VOID Fini(INT32 code, VOID *v)
     outFile << "#eof" << endl;
     outFile.close();
 }
-/* ===================================================================== */
-/* Print Help Message                                                    */
-/* ===================================================================== */
+
 INT32 Usage()
 {
     cerr << "Trace" << endl;
     cerr << endl << KNOB_BASE::StringKnobSummary() << endl;
     return -1;
 }
-/* ===================================================================== */
-/* Main                                                                  */
-/* ===================================================================== */
+
 int main(int argc, char * argv[])
 {
     // Initialize symbol table code, needed for rtn instrumentation
