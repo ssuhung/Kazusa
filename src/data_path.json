@@ -16,6 +16,17 @@
       ],
       "max_trace_len": 300000
    },
+   "CelebA_webp":{
+      "media":"data/CelebA_WebP/image/",
+      "pin":"data/CelebA_WebP/pin/raw_uncomp/",
+      "cacheline_encode":"data/CelebA_WebP/pin/raw_uncomp/",
+      "ID_path":"data/CelebA_WebP/CelebA_ID_dict.json",
+      "split":[
+         "train",
+         "test"
+      ],
+      "max_trace_len": 897567
+   },
    "Generalv1":{
       "media":"data/Generalv1/image/",
       "pin":"data/Generalv1/pin/raw/",

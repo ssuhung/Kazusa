@@ -12,7 +12,7 @@ class Params:
         else:
             default_output = os.path.join(os.environ.get('MANIFOLD_SCA'), 'output') + '/'
         parser.add_argument('--output_root', type=str, default=default_output)
-        parser.add_argument('--dataset', type=str, choices=['CelebA', 'Generalv1'])
+        parser.add_argument('--dataset', type=str, choices=['CelebA', 'CelebA_webp', 'Generalv1'])
         parser.add_argument('--trace_c', type=int, default=-1)
         parser.add_argument('--trace_w', type=int, default=-1)
         parser.add_argument('--batch_size', type=int, default=50)
@@ -70,9 +70,8 @@ class Params:
             for dataset_name in data_path.keys():
                 item = data_path[dataset_name]
                 for k in item.keys():
-                    if k in ['split', 'max_trace_len']:
-                        continue
-                    item[k] = os.path.join(root_dir, item[k])
+                    if k in ['media', 'pin', 'cacheline32', 'pagetable32', 'cacheline', 'cacheline_encode', 'pp-intel-dcache', 'pp-intel-icache', 'ID_path', 'refiner_path']:
+                        item[k] = os.path.join(root_dir, item[k])
         self.args.data_path = data_path
 
     def save_params(self, json_path):

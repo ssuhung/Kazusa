@@ -277,7 +277,8 @@ class ImageEngine:
         train_np = np.array(self.train_losses)
         test_np = np.array(self.test_losses)
         Printer.print(f'Minimum training loss: {(train_np.min().item()):.6f} in epoch {train_np.argmin().item() + 1}')
-        Printer.print(f'Minimum testing loss: {(test_np.min().item()):.6f} in epoch {test_np.argmin().item() + 1}')
+        Printer.print(f'Minimum testing loss: {(test_np.min().item()):.6f} in epoch {test_np.argmin().item() * self.args.test_freq + 1}')
+
 
 if __name__ == '__main__':
     args = Params().parse()

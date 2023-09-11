@@ -444,7 +444,7 @@ class TraceEncoder_1DCNN_encode(nn.Module):
         l = floor(floor(floor(floor(floor(floor(input_len / 4) / 4) / 4) / 4) / 4) / 4)
         self.network = nn.Sequential(
             # batch size x 64 x input_len
-            dcgan_conv_1d(64, nf, 6), # 會不會太大？
+            dcgan_conv_1d(64, nf, 6),
             # batch size x nf x (input_len / 4 = 75,000)
             dcgan_conv_1d(nf, nf, 4),
             # batch size x nf x (input_len / 16 = 18,750)
@@ -458,7 +458,7 @@ class TraceEncoder_1DCNN_encode(nn.Module):
             # batch size x nf*8 x (floor(292/4) = 73)
             nn.Sequential(
                 nn.Flatten(),
-                # batch size x nf*8*73 or 79
+                # batch size x nf*8*73 or 79 or 146
                 nn.Linear(nf*8*73, 128),
                 # batch size x 128
                 nn.BatchNorm1d(128),
