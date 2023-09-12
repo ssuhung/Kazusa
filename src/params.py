@@ -31,7 +31,6 @@ class Params:
         parser.add_argument('--noise_k', type=float, default=0)
         parser.add_argument('--noise_pp_op', type=str, default='', choices=['', 'out', 'flip', 'order'])
         parser.add_argument('--noise_pp_k', type=float, default=0)
-        parser.add_argument('--n_class', type=int, default=-1)
         parser.add_argument('--lambd', type=float, default=100)
         parser.add_argument('--alpha', type=float, default=0.84)
         parser.add_argument('--use_refiner', type=int, default=0, choices=[0, 1])

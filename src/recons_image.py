@@ -51,7 +51,7 @@ class ImageEngine:
         self.D = models.classifier(dim=self.args.nz, n_class=1, use_bn=False)
         self.D = self.D.to(self.args.device)
 
-        self.C = models.classifier(dim=self.args.nz, n_class=self.args.n_class, use_bn=False)
+        self.C = models.classifier(dim=self.args.nz, n_class=self.args.data_path[args.dataset]['num_class'], use_bn=False)
         self.C = self.C.to(self.args.device)
 
         self.optim_D = torch.optim.Adam(
@@ -286,8 +286,6 @@ if __name__ == '__main__':
     args.trace_c = 6
     args.trace_w = 256
     args.nz = 128
-    args.n_class = 10177
-    # args.n_class = 100
 
     args.image_root = os.path.join(args.output_root, args.exp_name, 'image')
     args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt')

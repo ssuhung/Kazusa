@@ -14,7 +14,8 @@
          "train",
          "test"
       ],
-      "max_trace_len": 300000
+      "max_trace_len": 300000,
+      "num_class": 10177
    },
    "CelebA_webp":{
       "media":"data/CelebA_WebP/image/",
@@ -25,7 +26,8 @@
          "train",
          "test"
       ],
-      "max_trace_len": 897567
+      "max_trace_len": 897567,
+      "num_class": 10177
    },
    "Generalv1":{
       "media":"data/Generalv1/image/",
@@ -37,6 +39,7 @@
          "test",
          "validation"
       ],
-      "max_trace_len": 322702
+      "max_trace_len": 322702,
+      "num_class": 100
    }
 }
