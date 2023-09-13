@@ -56,7 +56,7 @@ class Params:
             print("Warning: CUDA is not available, the calculation will be unreasonably slow")
             self.args.device = torch.device('cpu')
         self.parser = parser
-        self.get_data_path('data_path.json')
+        self.get_data_path('dataset_info.json')
 
     def parse(self):
         return self.args
