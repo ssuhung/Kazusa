@@ -12,13 +12,13 @@ assert seg_id in list(range(total_num))
 
 ROOT = os.environ.get('MANIFOLD_SCA')
 
-input_dir = ROOT + '/data/CelebA_crop128/image/'
+input_dir = ROOT + '/data/CelebA_jpg/image/'
 
 pp_exe = ROOT + '/prime_probe/Mastik/demo/./L1-capture'
-side_dir = ROOT + '/data/CelebA_crop128/pp/intel-dcache/'
+side_dir = ROOT + '/data/CelebA_jpg/pp/intel-dcache/'
 
 # pp_exe = ROOT + '/prime_probe/Mastik/demo/./L1i-capture'
-# side_dir = ROOT + '/data/CelebA_crop128/pp/intel-icache/'
+# side_dir = ROOT + '/data/CelebA_jpg/pp/intel-icache/'
 
 libjpeg_path = ROOT + '/target/./tjexample'
 

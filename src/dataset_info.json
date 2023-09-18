@@ -1,14 +1,14 @@
 {
-   "CelebA":{
-      "media":"data/CelebA_crop128/image/",
-      "pin":"data/CelebA_crop128/pin/raw/",
-      "cacheline32":"data/CelebA_crop128/pin/cacheline32/",
-      "pagetable32":"data/CelebA_crop128/pin/pagetable32/",
-      "cacheline":"data/CelebA_crop128/pin/cacheline/",
-      "cacheline_encode":"data/CelebA_crop128/pin/raw/",
-      "pp-intel-dcache":"data/CelebA_crop128/pp_noConcat/intel-dcache/",
-      "pp-intel-icache":"data/CelebA_crop128/pp/intel-icache/",
-      "ID_path":"data/CelebA_crop128/CelebA_ID_dict.json",
+   "CelebA_jpg":{
+      "media":"data/CelebA_jpg/image/",
+      "pin":"data/CelebA_jpg/pin/raw/",
+      "cacheline32":"data/CelebA_jpg/pin/cacheline32/",
+      "pagetable32":"data/CelebA_jpg/pin/pagetable32/",
+      "cacheline":"data/CelebA_jpg/pin/cacheline/",
+      "cacheline_encode":"data/CelebA_jpg/pin/raw/",
+      "pp-intel-dcache":"data/CelebA_jpg/pp_noConcat/intel-dcache/",
+      "pp-intel-icache":"data/CelebA_jpg/pp/intel-icache/",
+      "ID_path":"data/CelebA_jpg/CelebA_ID_dict.json",
       "refiner_path":"models/pin/CelebA/refiner-final.pth",
       "split":[
          "train",

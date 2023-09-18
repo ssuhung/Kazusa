@@ -12,7 +12,7 @@ class Params:
         else:
             default_output = os.path.join(os.environ.get('MANIFOLD_SCA'), 'output') + '/'
         parser.add_argument('--output_root', type=str, default=default_output)
-        parser.add_argument('--dataset', type=str, choices=['CelebA', 'CelebA_webp', 'Generalv1'])
+        parser.add_argument('--dataset', type=str, choices=['CelebA_jpg', 'CelebA_webp'])
         parser.add_argument('--trace_c', type=int, default=-1)
         parser.add_argument('--trace_w', type=int, default=-1)
         parser.add_argument('--batch_size', type=int, default=50)

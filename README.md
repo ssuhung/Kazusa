@@ -44,7 +44,7 @@ python3 prep_celeba.py
 Train the neural network model by the following command
 ```shell
 cd src
-python3 recons_image.py --side <cacheline or cacheline_encode> --dataset <CelebA or CelebA_webp> --exp_name <arbitrary_experiment_name>
+python3 recons_image.py --side <cacheline or cacheline_encode> --dataset <CelebA_jpg or CelebA_webp> --exp_name <arbitrary_experiment_name>
 ```
 The model, samples of reference images and reconstructed images will be saved in `output/<arbitrary_experiment_name>`
 

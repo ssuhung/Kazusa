@@ -102,12 +102,12 @@ if __name__ == '__main__':
                 progressbar.Timer(), ' ', progressbar.ETA()]
     
     manifold_root = "../"
-    input_dir = manifold_root + "data/CelebA_crop128/pin/raw/"
+    input_dir = manifold_root + "data/CelebA_jpg/pin/raw/"
     total_num = 4
 
-    # cacheline32_dir = manifold_root + "data/CelebA_crop128/pin/cacheline32/"
-    # pagetable32_dir = manifold_root + "data/CelebA_crop128/pin/pagetable32/"
-    cacheline_dir = manifold_root + "data/CelebA_crop128/pin/cacheline/"
+    # cacheline32_dir = manifold_root + "data/CelebA_jpg/pin/cacheline32/"
+    # pagetable32_dir = manifold_root + "data/CelebA_jpg/pin/pagetable32/"
+    cacheline_dir = manifold_root + "data/CelebA_jpg/pin/cacheline/"
 
     sub_list = [sub + '/' for sub in sorted(os.listdir(input_dir))]
 
