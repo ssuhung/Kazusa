@@ -47,3 +47,9 @@ cd src
 python3 recons_image.py --side <cacheline or cacheline_encode> --dataset <CelebA or CelebA_webp> --exp_name <arbitrary_experiment_name>
 ```
 The model, samples of reference images and reconstructed images will be saved in `output/<arbitrary_experiment_name>`
+
+# Common Problem
+
+1.  Shared Memory Not Enough or Worker of Dataloader Terminate Unexpectedly
+
+    Try to decrease the number of workers with parameter `--num_workers`

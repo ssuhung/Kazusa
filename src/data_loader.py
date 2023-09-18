@@ -142,11 +142,10 @@ class DataLoader:
         self.gpus = max(1, self.gpus)
 
     def get_loader(self, dataset, shuffle=True):
-        num_workers = 2
         data_loader = torch.utils.data.DataLoader(
                             dataset,
                             batch_size=self.args.batch_size * self.gpus,
-                            num_workers=num_workers,
+                            num_workers=self.args.num_workers,
                             shuffle=shuffle
                         )
         return data_loader

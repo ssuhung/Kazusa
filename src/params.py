@@ -21,6 +21,7 @@ class Params:
         parser.add_argument('--nz', type=int, default=512)
         parser.add_argument('--nc', type=int, default=3)
         parser.add_argument('--num_epoch', type=int, default=50)
+        parser.add_argument('--num_workers', type=int, default=3)
         parser.add_argument('--test_freq', type=int, default=3)
         parser.add_argument('--side', type=str, choices=['cacheline32', 'pagetable32', 'cacheline', 'cacheline_encode'], required=True)
         parser.add_argument('--cpu', type=str, default='intel', choices=['intel', 'amd'])
