@@ -4,6 +4,7 @@ import time
 import progressbar
 import torch
 import torch.nn as nn
+from pytorch_msssim import ssim
 
 import models
 import utils
@@ -279,6 +280,53 @@ class ImageEngine:
         Printer.print(f'Minimum training loss: {(train_np.min().item()):.6f} in epoch {train_np.argmin().item() + 1}')
         Printer.print(f'Minimum testing loss: {(test_np.min().item()):.6f} in epoch {test_np.argmin().item() * self.args.test_freq + 1}')
 
+    def print_avg_ssim(self, data_loader):
+        ssim_sum = 0
+        ssim_cnt = 0
+        self.set_eval()
+        progress = progressbar.ProgressBar(maxval=len(data_loader)).start()
+        with torch.no_grad():
+            for i, (trace, image, prefix, ID) in enumerate(data_loader):
+                progress.update(i + 1)
+                image = image.to(self.args.device)
+                trace = trace.to(self.args.device)
+                encoded = self.enc(trace)
+                decoded = self.dec(encoded)
+
+                ssim_val = ssim(decoded, image, data_range=1, size_average=True)
+                batch_size = image.size(0)
+                ssim_sum += ssim_val * batch_size
+                ssim_cnt += batch_size
+
+        progress.finish()
+        utils.clear_progressbar()
+        print(f'Avg. SSIM score: {ssim_sum / ssim_cnt}')
+
+    def save_image(self, output, name_list, path):
+        assert len(output) == len(name_list)
+        for i in range(len(output)):
+            export_path = f'{path}/{name_list[i]}.jpg'
+            utils.save_image(output[i].unsqueeze(0).data,
+                             export_path,
+                             normalize=True, nrow=1, padding=0)
+            
+    def inference(self, data_loader):
+        recons_dir = os.path.join(self.args.output_root, self.args.exp_name, 'recons')
+        target_dir = os.path.join(self.args.output_root, self.args.exp_name, 'target')
+        utils.make_path(recons_dir)
+        utils.make_path(target_dir)
+        progress = progressbar.ProgressBar(maxval=len(data_loader), widgets=utils.get_widgets()).start()
+        with torch.no_grad():
+            for i, (trace, image, prefix, ID) in enumerate(data_loader):
+                progress.update(i + 1)
+                trace = trace.to(self.args.device)
+                encoded = self.enc(trace)
+                decoded = self.dec(encoded)
+                decoded = decoded.to('cpu')
+                self.save_image(image, prefix, target_dir)
+                self.save_image(decoded, prefix, recons_dir)
+            progress.finish()
+            utils.clear_progressbar()
 
 if __name__ == '__main__':
     args = Params().parse()
@@ -354,3 +402,6 @@ if __name__ == '__main__':
     os.remove(os.path.join(args.output_root, args.exp_name, 'temp_state.pth'))
     Printer.print('Training finished!')
     engine.print_min_loss()
+
+    # engine.load_model('../output/Pin_cachelineEncode_WebP/ckpt/031.pth')
+    # engine.inference(test_loader)
