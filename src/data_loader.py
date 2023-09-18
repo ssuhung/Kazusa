@@ -35,11 +35,11 @@ def full_to_cacheline_index_encode(full: np.array, trace_len: int):
     arr = np.zeros((trace_len, 64), dtype=np.float16)
     arr_cacheline = to_cacheline(full)
     # WB
-    result = np.where(full > 0, 1., -1.)
-    arr[np.arange(len(arr_cacheline)), arr_cacheline] = result
+    # result = np.where(full > 0, 1., -1.)
+    # arr[np.arange(len(arr_cacheline)), arr_cacheline] = result
 
     # PP
-    # arr[np.arange(len(arr_cacheline)), arr_cacheline] = 1
+    arr[np.arange(len(arr_cacheline)), arr_cacheline] = 1
 
     return arr.astype(np.float32)
 
@@ -65,6 +65,7 @@ class CelebaDataset(Dataset):
                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                ])
 
+        # For Manifold
         # self.v_max, self.v_min = side_to_bound(side)
         
         Printer.print(f'{split.capitalize()} set: {len(self.npz_list)} Data Points.')
@@ -78,16 +79,23 @@ class CelebaDataset(Dataset):
     def __getitem__(self, index):
         npz_name = self.npz_list[index]
         prefix = npz_name.split('.')[0]
-        suffix = '.jpg'
+        suffix = '.jpg' # .jpg or .webp
         img_name = prefix + suffix
         ID = int(self.ID_dict[prefix + '.jpg']) - 1
 
         npz = np.load(self.npz_dir + npz_name)
         trace = npz['arr_0']
+
+        # For Manifold
         # trace = np.pad(trace, (0, 93216), mode='constant')  # Pad 256*256*6 - 300,000 = 93216 zeros
         # trace = trace.astype(np.float32)
+
+        # For proposed
         trace = full_to_cacheline_index_encode(trace, self.trace_len)
+
         trace = torch.from_numpy(trace)
+
+        # For Manifold
         # trace = trace.view([self.trace_c, self.trace_w, self.trace_w])
         # trace = utils.my_scale(v=trace, v_max=self.v_max, v_min=self.v_min)
 
@@ -134,7 +142,7 @@ class DataLoader:
         self.gpus = max(1, self.gpus)
 
     def get_loader(self, dataset, shuffle=True):
-        num_workers = 6
+        num_workers = 2
         data_loader = torch.utils.data.DataLoader(
                             dataset,
                             batch_size=self.args.batch_size * self.gpus,

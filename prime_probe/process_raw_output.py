@@ -13,7 +13,7 @@ concatenate_trials = False
 hit_miss_as_miss = False         # Whether or not to use the wrong method as in Manifold paper to define victom memory access
 
 # Job Parameters
-target_directory = "/home/ssuhung/Manifold-SCA/data/CelebA_crop128/"
+target_directory = "../data/CelebA_crop128/"
 
 def extract_timestamp(arr):
     return arr[:, 0:1]

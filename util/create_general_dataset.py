@@ -13,10 +13,10 @@ bbox_height = F("$metadata.height") * F("bounding_box")[3]
 num_channels = F("$metadata.channels") # TODO filter channels = 3
 
 category_dict = old_classes
-train_img_path = '/home/ssuhung/Manifold-SCA/data/General/image/train'
-test_img_path = '/home/ssuhung/Manifold-SCA/data/General/image/test'
-validation_img_path = '/home/ssuhung/Manifold-SCA/data/General/image/validation'
-export_classification_path = '/home/ssuhung/Manifold-SCA/data/General/img_category.json'
+train_img_path = '../data/General/image/train'
+test_img_path = '../data/General/image/test'
+validation_img_path = '../data/General/image/validation'
+export_classification_path = '../data/General/img_category.json'
 filter_conditions = [(bbox_width > 128) & (bbox_height > 128), F('IsInside') == False, F('IsDepiction') == False, F('IsGroupOf') == False, F('IsOccluded') == False]
 
 img_category_dict = {}

@@ -6,8 +6,8 @@ from vae_lp import VAE_LP
 
 args = Params().parse()
 
-args.image_dir = "/home/ssuhung/Manifold-SCA/data/Generalv1/image/"
-args.vae_dir = "/home/ssuhung/Manifold-SCA/output/Generalv1VAE_256/"
+args.image_dir = "../data/Generalv1/image/"
+args.vae_dir = "../output/Generalv1VAE_256/"
 args.vae_dim = 256
 
 args.image_root = args.vae_dir + 'image/'
@@ -33,6 +33,6 @@ for i in range(args.vae_epoch):
         vae.test(test_loader)
         vae.save_model('%s/ckpt/%03d.pth' % (args.vae_dir, i))
 
-# vae.load_model("/home/ssuhung/ICLR2021/output/ckpt/095.pth")
+# vae.load_model(args.ckpt_root + "095.pth")
 # output = vae.generate()
-# utils.save_image(output, ('/home/ssuhung/ICLR2021/generate.jpg'), normalize=True)
+# utils.save_image(output, (args.image_root + 'generate.jpg'), normalize=True)

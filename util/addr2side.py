@@ -101,7 +101,7 @@ if __name__ == '__main__':
                 progressbar.Bar('#'), ' ', 'Count: ', progressbar.Counter(), ' ',
                 progressbar.Timer(), ' ', progressbar.ETA()]
     
-    manifold_root = "/home/ssuhung/Manifold-SCA/"
+    manifold_root = "../"
     input_dir = manifold_root + "data/CelebA_crop128/pin/raw/"
     total_num = 4
 

@@ -726,7 +726,7 @@ if __name__ == '__main__':
     # engine.fit(train_loader, test_loader)
 
     # Part A2: use pre-trained image encoder and decoder to train trace encoder
-    engine.load_image_encoder_decoder("/home/ssuhung/Manifold-SCA/models/VAE.pth")
+    engine.load_image_encoder_decoder("../models/VAE.pth")
     engine.fit2(train_loader, test_loader)
 
 
