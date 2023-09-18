@@ -89,15 +89,13 @@ class CelebaDataset(Dataset):
         # For Manifold
         # trace = np.pad(trace, (0, 93216), mode='constant')  # Pad 256*256*6 - 300,000 = 93216 zeros
         # trace = trace.astype(np.float32)
+        # trace = torch.from_numpy(trace)
+        # trace = trace.view([self.trace_c, self.trace_w, self.trace_w])
+        # trace = utils.my_scale(v=trace, v_max=self.v_max, v_min=self.v_min)
 
         # For proposed
         trace = full_to_cacheline_index_encode(trace, self.trace_len)
-
         trace = torch.from_numpy(trace)
-
-        # For Manifold
-        # trace = trace.view([self.trace_c, self.trace_w, self.trace_w])
-        # trace = utils.my_scale(v=trace, v_max=self.v_max, v_min=self.v_min)
 
         image = Image.open(self.img_dir + img_name)
         image = self.transform(image)

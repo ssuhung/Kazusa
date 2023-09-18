@@ -36,7 +36,6 @@ class ImageEngine:
         self.enc = self.enc.to(self.args.device)
 
         self.dec = models.__dict__['ResDecoder%d' % self.args.image_size](dim=self.args.nz, nc=self.args.nc)
-        # self.dec = models.__dict__['image_decoder_%d' % self.args.image_size](dim=self.args.nz, nc=self.args.nc)
         self.dec = self.dec.to(self.args.device)    
 
         self.optim = torch.optim.Adam(
