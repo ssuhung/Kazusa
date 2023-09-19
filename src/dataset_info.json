@@ -3,7 +3,6 @@
       "media":"data/CelebA_jpg/image/",
       "pin":"data/CelebA_jpg/pin/raw/",
       "cacheline32":"data/CelebA_jpg/pin/cacheline32/",
-      "pagetable32":"data/CelebA_jpg/pin/pagetable32/",
       "cacheline":"data/CelebA_jpg/pin/cacheline/",
       "cacheline_encode":"data/CelebA_jpg/pin/raw/",
       "pp-intel-dcache":"data/CelebA_jpg/pp_noConcat/intel-dcache/",
@@ -15,7 +14,8 @@
          "test"
       ],
       "max_trace_len": 300000,
-      "num_class": 10177
+      "num_class": 10177,
+      "image_size": 128
    },
    "CelebA_webp":{
       "media":"data/CelebA_WebP/image/",
@@ -27,7 +27,8 @@
          "test"
       ],
       "max_trace_len": 897567,
-      "num_class": 10177
+      "num_class": 10177,
+      "image_size": 128
    },
    "Generalv1":{
       "media":"data/Generalv1/image/",

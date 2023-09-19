@@ -682,8 +682,9 @@ if __name__ == '__main__':
     p = Params()
     args = p.parse()
 
-    if args.cpu == 'intel' and args.cache == 'dcache':
-        (args.trace_w, args.trace_c) = (256, 8)
+    args.cpu == 'intel'
+    args.cache == 'dcache'
+    args.trace_w, args.trace_c = 256, 8
 
     args.nz = 128
     print(args.exp_name)
