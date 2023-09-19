@@ -733,7 +733,7 @@ if __name__ == '__main__':
     # Part B: for reconstructing media data
     
     # B1. use our trained model
-    # ROOT = '..' if os.environ.get('MANIFOLD_SCA') is None else os.environ.get('MANIFOLD_SCA') # use our trained model
+    # ROOT = '../'
     # engine.load_model(ROOT + '/models/pp/CelebA_intel_dcache/final.pth')
     # if arg.use_refiner:
     #     engine.load_refiner(ROOT + '/models/pin/CelebA_refiner/refiner-final.pth')

@@ -151,9 +151,7 @@ if __name__ == '__main__':
     p = Params()
     args = p.parse()
 
-    ROOT = os.environ.get('MANIFOLD_SCA')
-    if ROOT is None:
-        ROOT = '..'
+    ROOT = '..'
 
     dataset2media = {
         'CelebA': 'image',

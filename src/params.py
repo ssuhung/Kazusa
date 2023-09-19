@@ -7,11 +7,7 @@ class Params:
     def __init__(self):
         parser = argparse.ArgumentParser()
         parser.add_argument('--exp_name', type=str, required=True)
-        if os.environ.get('MANIFOLD_SCA') is None:
-            default_output = ''
-        else:
-            default_output = os.path.join(os.environ.get('MANIFOLD_SCA'), 'output') + '/'
-        parser.add_argument('--output_root', type=str, default=default_output)
+        parser.add_argument('--output_root', type=str, default='../output/')
         parser.add_argument('--dataset', type=str, choices=['CelebA_jpg', 'CelebA_webp'])
         parser.add_argument('--trace_c', type=int, default=-1)
         parser.add_argument('--trace_w', type=int, default=-1)
@@ -65,13 +61,12 @@ class Params:
     def get_data_path(self, json_path):
         with open(json_path, 'r') as f:
             data_path = json.load(f)
-        root_dir = os.environ.get('MANIFOLD_SCA')
-        if root_dir is not None:
-            for dataset_name in data_path.keys():
-                item = data_path[dataset_name]
-                for k in item.keys():
-                    if k in ['media', 'pin', 'cacheline32', 'pagetable32', 'cacheline', 'cacheline_encode', 'pp-intel-dcache', 'pp-intel-icache', 'ID_path', 'refiner_path']:
-                        item[k] = os.path.join(root_dir, item[k])
+        root_dir = '../'
+        for dataset_name in data_path.keys():
+            item = data_path[dataset_name]
+            for k in item.keys():
+                if k in ['media', 'pin', 'cacheline32', 'pagetable32', 'cacheline', 'cacheline_encode', 'pp-intel-dcache', 'pp-intel-icache', 'ID_path', 'refiner_path']:
+                    item[k] = os.path.join(root_dir, item[k])
         self.args.data_path = data_path
 
     def save_params(self, json_path):
