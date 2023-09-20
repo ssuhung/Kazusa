@@ -39,6 +39,7 @@ make obj-intel64/mem_access.so TARGET=intel64
 cd <pin root>/source/tools/ManualExamples/
 python3 prep_traces.py　--num_workers <number of workers>
 ```
+(Optional) 5. To train the model with traces collected from `libwebp`, uncompressing the npz file and preforming pre-processing is necessary for optimizing the proformance. Execute the `util/uncompress_npz.py` script
 
 # 4. Train and Evaluate
 Train the neural network model by the following command
