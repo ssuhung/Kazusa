@@ -32,7 +32,10 @@ class ImageEngine:
     def init_model_optimizer(self):
         # self.enc = models.__dict__['attn_trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=self.args.trace_c)
         # self.enc = models.__dict__['trace_encoder_%d' % self.args.trace_w](dim=self.args.nz, nc=self.args.trace_c)
-        self.enc = models.TraceEncoder_1DCNN_encode(input_len=self.args.data_path[args.dataset]['max_trace_len'], dim=self.args.nz)
+        if self.args.dataset == 'CelebA_jpg':
+            self.enc = models.TraceEncoder_1DCNN_encode(input_len=self.args.data_path[args.dataset]['max_trace_len'], dim=self.args.nz)
+        elif self.args.dataset == 'CelebA_webp':
+            self.enc = models.TraceEncoder_1DCNN_encode_webp(input_len=self.args.data_path[args.dataset]['max_trace_len'], dim=self.args.nz)
         self.enc = self.enc.to(self.args.device)
 
         self.dec = models.__dict__['ResDecoder%d' % self.args.image_size](dim=self.args.nz, nc=self.args.nc)

@@ -14,9 +14,6 @@ def side_to_bound(side):
     if side == 'cacheline32':
         v_max = 0xFFFF_FFFF >> 6
         v_min = -(0xFFFF_FFFF >> 6)
-    elif side == 'pagetable32':
-        v_max = 0xFFFF_FFFF >> 12
-        v_min = -(0xFFFF_FFFF >> 12)
     elif side == 'cacheline':
         v_max = 0xFFF >> 6
         v_min = -(0xFFF >> 6)

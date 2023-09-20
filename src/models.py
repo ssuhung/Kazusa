@@ -173,11 +173,11 @@ class dcgan_conv(nn.Module):
         return self.main(input)
 
 class dcgan_conv_1d(nn.Module):
-    def __init__(self, nin, nout, kernal_size):
+    def __init__(self, nin, nout, kernal_size, pool_kernel=4):
         super().__init__()
         self.main = nn.Sequential(
             nn.Conv1d(nin, nout, kernal_size, padding=kernal_size//2),
-            nn.MaxPool1d(4),
+            nn.MaxPool1d(pool_kernel),
             nn.BatchNorm1d(nout),
             nn.LeakyReLU(0.2, inplace=True)
         )
@@ -402,7 +402,6 @@ class TraceEncoder_1DCNN(nn.Module):
 
 class TraceEncoder_1DCNN_encode(nn.Module):
     """
-    Modified from attn_trace_encoder_256
     Accept input: (batch size x input_len x 64)
     """
     def __init__(self, input_len, dim):
@@ -413,21 +412,61 @@ class TraceEncoder_1DCNN_encode(nn.Module):
         self.network = nn.Sequential(
             # batch size x 64 x input_len
             dcgan_conv_1d(64, nf, 6),
-            # batch size x nf x (input_len / 4 = 75,000)
+            # batch size x nf x (input_len / 4)
             dcgan_conv_1d(nf, nf, 4),
-            # batch size x nf x (input_len / 16 = 18,750)
+            # batch size x nf x (input_len / 4 / 4)
             dcgan_conv_1d(nf, nf * 2, 4),
-            # batch size x nf*2 x (floor(18,750/4) = 4,687)
+            # batch size x nf*2 x (input_len / 4 / 4 / 4)
             dcgan_conv_1d(nf * 2, nf * 4, 4),
-            # batch size x nf*4 x (floor(4,687/4) = 1,171)
+            # batch size x nf*4 x (input_len / 4 / 4 / 4 / 4)
             dcgan_conv_1d(nf * 4, nf * 8, 4),
-            # batch size x nf*8 x (floor(1,171/4) = 292)
+            # batch size x nf*8 x (input_len / 4 / 4 / 4 / 4 / 4)
             dcgan_conv_1d(nf * 8, nf * 8, 4),
-            # batch size x nf*8 x (floor(292/4) = 73)
+            # batch size x nf*8 x (input_len / 4 / 4 / 4 / 4 / 4 / 4)
             nn.Sequential(
                 nn.Flatten(),
-                # batch size x nf*8*73 or 79 or 146
-                nn.Linear(nf*8*73, 128),
+                # batch size x nf*8*l
+                nn.Linear(nf*8*l, 128),
+                # batch size x 128
+                nn.BatchNorm1d(128),
+            )
+        )
+
+        self.apply(weights_init)
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1)
+        out = self.network(x)
+        return out.view(-1, self.dim)
+
+class TraceEncoder_1DCNN_encode_webp(nn.Module):
+    """
+    Trace Encoder for WebP
+    Accept input: (batch size x input_len x 64)
+    """
+    def __init__(self, input_len, dim):
+        super().__init__()
+        self.dim = dim
+        nf = 64
+        l = floor(floor(floor(floor(floor(floor(input_len / 6) / 4) / 4) / 4) / 4) / 4)
+        self.network = nn.Sequential(
+            # batch size x 64 x input_len
+            dcgan_conv_1d(64, nf, 6, 6),
+            # batch size x nf x (input_len / 6)
+            dcgan_conv_1d(nf, nf, 4),
+            # batch size x nf x (input_len / 6 / 4)
+            dcgan_conv_1d(nf, nf * 2, 4),
+            # batch size x nf*2 x (input_len / 6 / 4 / 4)
+            dcgan_conv_1d(nf * 2, nf * 4, 4),
+            # batch size x nf*4 x (input_len / 6 / 4 / 4 / 4)
+            dcgan_conv_1d(nf * 4, nf * 8, 4),
+            # batch size x nf*8 x (input_len / 6 / 4 / 4 / 4 / 4)
+            dcgan_conv_1d(nf * 8, nf * 8, 4),
+            # batch size x nf*8 x (input_len / 6 / 4 / 4 / 4 / 4 / 4)
+            nn.Sequential(
+                nn.Flatten(),
+                # batch size x nf*8*l
+                nn.Linear(nf*8*l, 128),
                 # batch size x 128
                 nn.BatchNorm1d(128),
             )
@@ -575,7 +614,7 @@ class attn_trace_encoder_square_128(nn.Module):
         h4 = self.attn4(self.c4(h3))
         h5 = self.c5(h4)
         #h6 = self.c6(h5)
-        return h5.transpose(1, 2).transpose(2, 3)#.view(-1, self.dim)
+        return h5.transpose(1, 2).transpose(2, 3)
 
     def forward_grad(self, x, grad_saver):
         x.requires_grad = True
@@ -587,7 +626,7 @@ class attn_trace_encoder_square_128(nn.Module):
         h4 = self.attn4(self.c4(h3))
         h5 = self.c5(h4)
         #h6 = self.c6(h5)
-        return h5.transpose(1, 2).transpose(2, 3)#.view(-1, self.dim)
+        return h5.transpose(1, 2).transpose(2, 3)
 
 class RefinerD(nn.Module):
     def __init__(self, nc, ndf):
