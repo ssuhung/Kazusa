@@ -173,10 +173,10 @@ class dcgan_conv(nn.Module):
         return self.main(input)
 
 class dcgan_conv_1d(nn.Module):
-    def __init__(self, nin, nout, kernal_size, pool_kernel=4):
+    def __init__(self, nin, nout, kernel_size, pool_kernel=4):
         super().__init__()
         self.main = nn.Sequential(
-            nn.Conv1d(nin, nout, kernal_size, padding=kernal_size//2),
+            nn.Conv1d(nin, nout, kernel_size, padding=kernel_size//2),
             nn.MaxPool1d(pool_kernel),
             nn.BatchNorm1d(nout),
             nn.LeakyReLU(0.2, inplace=True)
