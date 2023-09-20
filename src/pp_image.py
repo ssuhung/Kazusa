@@ -2,7 +2,6 @@ import json
 import os
 import random
 import time
-from attr import s
 
 import numpy as np
 import progressbar
@@ -679,8 +678,7 @@ class ImageEngine:
 
 
 if __name__ == '__main__':
-    p = Params()
-    args = p.parse()
+    args = Params().parse()
 
     args.cpu == 'intel'
     args.cache == 'dcache'
@@ -698,12 +696,12 @@ if __name__ == '__main__':
     torch.cuda.manual_seed_all(manual_seed)
 
     utils.make_path(args.output_root)
-    utils.make_path(args.output_root + args.exp_name)
+    utils.make_path(os.path.join(args.output_root, args.exp_name))
 
-    args.image_root = args.output_root + args.exp_name + '/image/'
-    args.ckpt_root = args.output_root + args.exp_name + '/ckpt/'
-    args.recons_root = args.output_root + args.exp_name + '/recons/'
-    args.target_root = args.output_root + args.exp_name + '/target/'
+    args.image_root = os.path.join(args.output_root, args.exp_name, 'image/')
+    args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt/')
+    args.recons_root = os.path.join(args.output_root, args.exp_name, 'recons/')
+    args.target_root = os.path.join(args.output_root, args.exp_name, 'target/')
 
     utils.make_path(args.image_root)
     utils.make_path(args.ckpt_root)

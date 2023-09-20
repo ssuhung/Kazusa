@@ -66,7 +66,7 @@ class ImageEngine:
                         )
 
     def save_model(self, path):
-        Printer.print('Saving Model on %s ...' % (path))
+        Printer.print(f'Save Model to {path}')
         state = {
             'enc': self.enc.state_dict(),
             'dec': self.dec.state_dict(),
@@ -77,7 +77,7 @@ class ImageEngine:
         torch.save(state, path)
 
     def load_model(self, path):
-        print('Loading Model from %s ...' % (path))
+        print(f'Load Model from {path}')
         ckpt = torch.load(path, map_location=self.args.device)
         self.enc.load_state_dict(ckpt['enc'])
         self.dec.load_state_dict(ckpt['dec'])
@@ -143,7 +143,7 @@ class ImageEngine:
         self.D.eval()
         self.C.eval()
 
-    def train(self, data_loader):
+    def _train(self, data_loader):
         with torch.autograd.set_detect_anomaly(True):
             self.epoch += 1
             self.set_train()
@@ -226,8 +226,8 @@ class ImageEngine:
                 record_C_fake_acc.add(utils.accuracy(pred_fake, ID))
 
                 if i == 0:
-                    self.save_output(decoded, os.path.join(self.args.image_root, ('train_%03d.jpg' % self.epoch)))
-                    self.save_output(image, os.path.join(self.args.image_root, ('train_%03d_target.jpg' % self.epoch)))
+                    self.save_output(decoded, os.path.join(self.args.image_root, (f'train_{self.epoch:03d}.jpg')))
+                    self.save_output(image, os.path.join(self.args.image_root, (f'train_{self.epoch:03d}_target.jpg')))
 
             progress.finish()
             utils.clear_progressbar()
@@ -242,8 +242,25 @@ class ImageEngine:
             Printer.print(f'Loss & Acc of C ID real: {(record_C_real.mean()):.6f} & {(record_C_real_acc.mean()):.6f}')
             Printer.print(f'Loss & Acc of C ID fake: {(record_C_fake.mean()):.6f} & {(record_C_fake_acc.mean()):.6f}')
             Printer.print(f'D(x) is: {D_x:.6f}, D(G(z1)) is: {D_G_z1:.6f}, D(G(z2)) is: {D_G_z2:.6f}')
-            
-    def test(self, data_loader):
+
+    def train(self, train_loader, test_loader):
+        test_freq = self.args.test_freq
+        exp_name = self.args.exp_name
+        output_root = self.args.output_root
+        ckpt_root = self.args.ckpt_root
+        
+        for i in range(self.epoch, self.args.num_epoch):
+            self._train(train_loader)
+            if i % test_freq == 0:
+                self._test(test_loader)
+                self.save_model(os.path.join(ckpt_root, f'{(i+1):03d}.pth'))
+            self.save_state(os.path.join(output_root, exp_name, 'temp_state.pth'))
+        self.save_model(os.path.join(ckpt_root, 'final.pth'))
+        os.remove(os.path.join(output_root, exp_name, 'temp_state.pth'))
+        Printer.print('Training finished!')
+        self.print_min_loss()
+
+    def _test(self, data_loader):
         self.set_eval()
         record_mse = utils.Record()
         record = utils.Record()
@@ -264,8 +281,8 @@ class ImageEngine:
                 record.add(recons_err.item())
 
                 if i == 0:
-                    self.save_output(decoded, os.path.join(self.args.image_root, ('test_%03d.jpg' % self.epoch)))
-                    self.save_output(image, os.path.join(self.args.image_root, ('test_%03d_target.jpg' % self.epoch)))
+                    self.save_output(decoded, os.path.join(self.args.image_root, (f'test_{self.epoch:03d}.jpg')))
+                    self.save_output(image, os.path.join(self.args.image_root, (f'test_{self.epoch:03d}_target.jpg')))
 
             progress.finish()
             utils.clear_progressbar()
@@ -285,7 +302,8 @@ class ImageEngine:
     def save_image(self, output, name_list, path):
         assert len(output) == len(name_list)
         for i in range(len(output)):
-            export_path = f'{path}/{name_list[i]}.jpg'
+            name = name_list[i]
+            export_path = os.path.join(path, f'{name}.jpg')
             utils.save_image(output[i].unsqueeze(0).data,
                              export_path,
                              normalize=True, nrow=1, padding=0)
@@ -339,7 +357,7 @@ if __name__ == '__main__':
     
     engine = ImageEngine(args)
 
-    if os.path.exists(args.output_root + args.exp_name):
+    if os.path.exists(os.path.join(args.output_root, args.exp_name)):
         ans = input(f'Experiment folder "{args.exp_name}" already exist, do you want to continue training or overwrite the result? (continue/overwrite/ctrl+c) ')
         if ans.lower() == 'continue':
             print("Continue training")
@@ -390,16 +408,7 @@ if __name__ == '__main__':
     train_loader = loader.get_loader(train_dataset)
     test_loader = loader.get_loader(test_dataset, shuffle=False)
 
-    for i in range(engine.epoch, args.num_epoch):
-        engine.train(train_loader)
-        if i % args.test_freq == 0:
-            engine.test(test_loader)
-            engine.save_model((args.ckpt_root + '/%03d.pth') % (i + 1))
-        engine.save_state(os.path.join(args.output_root, args.exp_name, 'temp_state.pth'))
-    engine.save_model((args.ckpt_root + '/final.pth'))
-    os.remove(os.path.join(args.output_root, args.exp_name, 'temp_state.pth'))
-    Printer.print('Training finished!')
-    engine.print_min_loss()
+    engine.train(train_loader, test_loader)
 
     # engine.load_model('../output/Pin_cachelineEncode_WebP/ckpt/031.pth')
     # engine.inference(test_loader)

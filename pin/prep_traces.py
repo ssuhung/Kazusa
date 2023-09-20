@@ -8,9 +8,9 @@ import progressbar
 # Parameters (Set these by yourself)
 num_worker = 8
 repo_root = ''
-target_path = repo_root + 'target/tjexample'
-npz_output_root = repo_root + 'data/CelebA_jpg/pin/raw/'
-img_root = repo_root + 'data/CelebA_jpg/image/'
+target_path = os.path.join(repo_root, 'target/tjexample')
+npz_output_root = os.path.join(repo_root, 'data/CelebA_jpg/pin/raw/')
+img_root = os.path.join(repo_root, 'data/CelebA_jpg/image/')
 
 def make_path(path):
     if not os.path.exists(path):
@@ -59,13 +59,13 @@ if __name__ == '__main__':
     make_path(npz_output_root)
 
     for split in splits:
-        image_dir = img_root + split
+        image_dir = os.path.join(img_root, split)
         total_img_list = sorted(os.listdir(image_dir))
         unit_len = len(total_img_list) // num_worker
         ID = args.ID - 1
         img_list = total_img_list[ID*unit_len:(ID+1)*unit_len]
 
-        make_path(npz_output_root + split)
+        make_path(os.path.join(npz_output_root, split))
 
         print('Total number of images: ', len(img_list))
         print('Number for this worker: ', len(total_img_list))
@@ -74,9 +74,9 @@ if __name__ == '__main__':
         for i, img in enumerate(img_list):
             progress.update(i + 1)
             
-            img_path = image_dir + img
+            img_path = os.path.join(image_dir, img)
             prefix = img.split('.')[0]
-            npz_path = npz_output_root + split + prefix + '.npz'
+            npz_path = os.path.join(npz_output_root, split, prefix + '.npz')
             
             # Target libjpeg
             os.system(f'{pin} -- {target_path} {img_path} {"img_output_" + str(args.ID) + ".bmp"} > /dev/null')

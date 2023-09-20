@@ -126,18 +126,12 @@ class Pipeline:
                 print('Target %s Saved in %s' % (self.media, target_dir))
 
 if __name__ == '__main__':
-    p = Params()
-    args = p.parse()
+    args = Params().parse()
 
     ROOT = '..'
 
     dataset2media = {
         'CelebA': 'image',
-        'ChestX-ray': 'image',
-        'SC09': 'audio',
-        'Sub-URMP': 'audio',
-        'COCO': 'text',
-        'DailyDialog': 'text',
         'CIFAR100': 'image'
     }
 
@@ -169,44 +163,41 @@ if __name__ == '__main__':
     torch.cuda.manual_seed_all(manual_seed)
 
     utils.make_path(args.output_root)
-    utils.make_path(args.output_root + args.exp_name)
+    utils.make_path(os.path.join(args.output_root, args.exp_name))
 
-    args.ckpt_root = args.output_root + args.exp_name + '/ckpt/'
-    args.recons_root = args.output_root + args.exp_name + '/recons/'
-    args.target_root = args.output_root + args.exp_name + '/target/'
+    args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt')
+    args.recons_root = os.path.join(args.output_root, args.exp_name, 'recons')
+    args.target_root = os.path.join(args.output_root, args.exp_name, 'target')
 
     utils.make_path(args.ckpt_root)
     utils.make_path(args.recons_root)
     utils.make_path(args.target_root)
 
-    if args.dataset == 'CelebA':
-        test_dataset = CelebaDataset(
-                    img_dir=args.data_path[args.dataset]['media'], 
-                    npz_dir=args.data_path[args.dataset][args.side],
-                    ID_path=args.data_path[args.dataset]['ID_path'],
-                    split=args.data_path[args.dataset]['split'][1],
-                    trace_c=args.trace_c,
-                    trace_w=args.trace_w,
-                    image_size=args.image_size,
-                    side=args.side
-                )
-        if args.use_refiner:
-            ckpt_path = ROOT + '/models/pin/CelebA_cacheline_pre/final.pth'
-            refiner_path = ROOT + '/models/pin/CelebA_refiner/refiner-final.pth'
-        else:
-            ckpt_path = ROOT + '/models/pin/CelebA_cacheline/final.pth'
+    test_dataset = CelebaDataset(
+                img_dir=args.data_path[args.dataset]['media'], 
+                npz_dir=args.data_path[args.dataset][args.side],
+                ID_path=args.data_path[args.dataset]['ID_path'],
+                split=args.data_path[args.dataset]['split'][1],
+                trace_c=args.trace_c,
+                trace_w=args.trace_w,
+                image_size=args.image_size,
+                side=args.side
+            )
+    if args.use_refiner:
+        ckpt_path = os.path.join(ROOT, '/models/pin/CelebA_cacheline_pre/final.pth')
+        refiner_path = os.path.join(ROOT, '/models/pin/CelebA_refiner/refiner-final.pth')
+    else:
+        ckpt_path = os.path.join(ROOT, '/models/pin/CelebA_cacheline/final.pth')
 
     loader = DataLoader(args)
 
     test_loader = loader.get_loader(test_dataset, shuffle=False)
 
-    engine = Pipeline(args, media,
-                idx2word=(test_dataset.index_to_word if media == 'text' else None),
-                word2idx=(test_dataset.word_to_index if media == 'text' else None))
+    engine = Pipeline(args, media, idx2word=None, word2idx=None)
     
     # Use our trained models
     engine.load_model(ckpt_path)
-    if media == 'image' and args.use_refiner:
+    if args.use_refiner:
         engine.load_refiner(refiner_path)
 
     # # Use your models
