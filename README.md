@@ -32,12 +32,12 @@ Follow the instruction in [libwebp](https://github.com/webmproject/libwebp) repo
 make obj-intel64/mem_access.so TARGET=intel64
 ```
 
-3. Copy `pin/prep_celeba.py` to `<pin root>/source/tools/ManualExamples/` and set the `repo_root` variable to the directory of this repository in the file:
+3. Copy `pin/prep_traces.py` to `<pin root>/source/tools/ManualExamples/` and set the `repo_root` variable to the directory of this repository in the file:
 
-4. Execute the script to collect traces
+4. Execute the script to collect traces. Use `--num_workers` option to accelerate the process
 ```shell
 cd <pin root>/source/tools/ManualExamples/
-python3 prep_celeba.py
+python3 prep_traces.py　--num_workers <number of workers>
 ```
 
 # 4. Train and Evaluate

@@ -1,20 +1,24 @@
 import argparse
+import multiprocessing
 import os
+from multiprocessing import Pool
 
 import numpy as np
 import progressbar
 
-
 # Parameters (Set these by yourself)
-num_worker = 8
-repo_root = ''
+repo_root = '../'
 target_path = os.path.join(repo_root, 'target/tjexample')
 npz_output_root = os.path.join(repo_root, 'data/CelebA_jpg/pin/raw/')
 img_root = os.path.join(repo_root, 'data/CelebA_jpg/image/')
+splits = ['train/', 'test/']
+# widgets = ['Progress: ', progressbar.Percentage(), ' ', 
+#             progressbar.Bar('#'), ' ', 'Count: ', progressbar.Counter(), ' ',
+#             progressbar.Timer(), ' ', progressbar.ETA()]
 
 def make_path(path):
     if not os.path.exists(path):
-        os.mkdir(path)
+        os.makedirs(path)
 
 def raw2npz(in_path, npz_path) -> int:
     with open(in_path, 'r') as f:
@@ -41,50 +45,49 @@ def raw2npz(in_path, npz_path) -> int:
     np.savez_compressed(npz_path, np.array(mem_arr))
     return len(mem_arr)
 
+def collect(img, image_dir, split):
+    worker_id = multiprocessing.current_process().name.split('-')[-1]
+    pin_out = f'mem_access_{worker_id}.out'
+    pin = f'../../../pin -t obj-intel64/mem_access.so -o {pin_out}'
 
-widgets = ['Progress: ', progressbar.Percentage(), ' ', 
-            progressbar.Bar('#'), ' ', 'Count: ', progressbar.Counter(), ' ',
-            progressbar.Timer(), ' ', progressbar.ETA()]
-splits = ['train/', 'test/']
+    img_path = os.path.join(image_dir, img)
+    prefix = img.split('.')[0]
+    npz_path = os.path.join(npz_output_root, split, prefix + '.npz')
+    
+    # Target libjpeg
+    os.system(f'{pin} -- {target_path} {img_path} img_output_{worker_id}.bmp > /dev/null')
+    # Target libwebp
+    # os.system(f'{pin} -- {target_path} {img_path} -bmp -o img_output_{ID}.bmp > /dev/null 2>&1')
+
+    leng = raw2npz(in_path=pin_out, npz_path=npz_path)
+    if int(prefix) % 1000 == 0:
+        print(f'Files before id {prefix} is done')
+    return leng
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ID', type=int, default=1, help='ID, start from 1')
+    parser.add_argument('--num_workers', type=int, default=1, help='Number of workers to paralize')
     args = parser.parse_args()
 
-    pin_out = f'mem_access_{args.ID}.out'
-    pin = f'../../../pin -t obj-intel64/mem_access.so -o {pin_out}'
-    max_len = 0
-
     make_path(npz_output_root)
+    max_len = 0
 
     for split in splits:
         image_dir = os.path.join(img_root, split)
-        total_img_list = sorted(os.listdir(image_dir))
-        unit_len = len(total_img_list) // num_worker
-        ID = args.ID - 1
-        img_list = total_img_list[ID*unit_len:(ID+1)*unit_len]
+        img_list = sorted(os.listdir(image_dir))
+        # progress = progressbar.ProgressBar(widgets=widgets, maxval=len(img_list)).start()
 
         make_path(os.path.join(npz_output_root, split))
 
         print('Total number of images: ', len(img_list))
-        print('Number for this worker: ', len(total_img_list))
 
-        progress = progressbar.ProgressBar(widgets=widgets, maxval=len(img_list)).start()
-        for i, img in enumerate(img_list):
-            progress.update(i + 1)
-            
-            img_path = os.path.join(image_dir, img)
-            prefix = img.split('.')[0]
-            npz_path = os.path.join(npz_output_root, split, prefix + '.npz')
-            
-            # Target libjpeg
-            os.system(f'{pin} -- {target_path} {img_path} {"img_output_" + str(args.ID) + ".bmp"} > /dev/null')
-            # Target libwebp
-            # os.system(f'{pin} -- {target_path} {img_path} -bmp -o {"img_output_" + str(args.ID) + ".bmp"} > /dev/null 2>&1')
+        img_dirs = [image_dir] * len(img_list)
+        split_list = [split] * len(img_list)
+        inputs = list(zip(img_list, img_dirs, split_list))
 
-            leng = raw2npz(in_path=pin_out, npz_path=npz_path)
-            max_len = max(max_len, leng)
+        with Pool(args.num_workers) as p:
+            result = p.starmap(collect, inputs)
+            max_len = max(max(result), max_len)
+            # progress.finish()
 
-    progress.finish()
     print(f"{max_len=}")
