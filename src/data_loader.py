@@ -3,7 +3,6 @@ import os
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torchvision.transforms as transforms
 import utils
 from PIL import Image
@@ -21,36 +20,20 @@ def side_to_bound(side):
         raise NotImplementedError
     return v_max, v_min
 
-def to_cacheline(addr):
-    # jpg
-    return (abs(addr) & 0xFFF) >> 6
-    # webp
-    # return abs(addr) >> 6
 
-def full_to_cacheline_index_encode(full: np.array, trace_len: int):
-    assert full.shape[0] <= trace_len, "Error: trace length longer than padding length"
-    arr = np.zeros((trace_len, 64), dtype=np.float16)
-    arr_cacheline = to_cacheline(full)
-    # WB
-    # result = np.where(full > 0, 1., -1.)
-    # arr[np.arange(len(arr_cacheline)), arr_cacheline] = result
-
-    # PP
-    arr[np.arange(len(arr_cacheline)), arr_cacheline] = 1
-
-    return arr.astype(np.float32)
 
 class CelebaDataset(Dataset):
     def __init__(self, npz_dir, img_dir, ID_path, split,
                 image_size, side, trace_c, trace_w,
-                trace_len, leng=None, k=None):
+                trace_len, leng=None, k=None, attack=None):
         super().__init__()
-        self.npz_dir = ('%s%s/' % (npz_dir, split))
-        self.img_dir = ('%s%s/' % (img_dir, split))
+        self.npz_dir = os.path.join(npz_dir, split)
+        self.img_dir = os.path.join(img_dir, split)
         self.trace_c = trace_c
         self.trace_w = trace_w
         self.trace_len = trace_len
         self.k = k
+        self.attack = attack
 
         self.npz_list = sorted(os.listdir(self.npz_dir))[:leng]
         self.img_list = sorted(os.listdir(self.img_dir))[:leng]
@@ -91,20 +74,41 @@ class CelebaDataset(Dataset):
         # trace = utils.my_scale(v=trace, v_max=self.v_max, v_min=self.v_min)
 
         # For proposed
-        trace = full_to_cacheline_index_encode(trace, self.trace_len)
+        trace = self.full_to_cacheline_index_encode(trace, self.trace_len)
         trace = torch.from_numpy(trace)
 
-        image = Image.open(self.img_dir + img_name)
+        image = Image.open(os.path.join(self.img_dir, img_name))
         image = self.transform(image)
 
         ID = torch.LongTensor([ID]).squeeze()
         return trace, image, prefix, ID
     
+    def to_cacheline(self, addr):
+        # jpg
+        return (abs(addr) & 0xFFF) >> 6
+        # webp
+        # return abs(addr) >> 6
+
+    def full_to_cacheline_index_encode(self, full: np.array, trace_len: int):
+        assert full.shape[0] <= trace_len, "Error: trace length longer than padding length"
+        arr = np.zeros((trace_len, 64), dtype=np.float16)
+        arr_cacheline = self.to_cacheline(full)
+
+        if self.attack == 'pp':
+            arr[np.arange(len(arr_cacheline)), arr_cacheline] = 1
+        elif self.attack == 'wb':
+            result = np.where(full > 0, 1., -1.)
+            arr[np.arange(len(arr_cacheline)), arr_cacheline] = result
+        else:
+            raise NotImplementedError
+
+        return arr.astype(np.float32)
+
 class ImageDataset(Dataset):
     def __init__(self, args, split):
         super().__init__()
         self.args = args
-        self.img_dir = args.image_dir + split + '/'
+        self.img_dir = os.path.join(args.image_dir, split)
 
         self.img_list = sorted(os.listdir(self.img_dir))
 
@@ -122,7 +126,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         img_name = self.img_list[index]
-        image = Image.open(self.img_dir + img_name)
+        image = Image.open(os.path.join(self.img_dir, img_name))
         image = self.transform(image)
         
         return image

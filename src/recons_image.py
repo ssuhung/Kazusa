@@ -151,9 +151,9 @@ class ImageEngine:
             record_mse = utils.Record()
             record_G = utils.Record()
             record_D = utils.Record()
-            record_C_real = utils.Record() # C1 for ID
+            record_C_real = utils.Record()
             record_C_fake = utils.Record()
-            record_C_real_acc = utils.Record() # C1 for ID
+            record_C_real_acc = utils.Record()
             record_C_fake_acc = utils.Record()
             start_time = time.time()
             progress = progressbar.ProgressBar(maxval=len(data_loader)).start()
@@ -392,7 +392,8 @@ if __name__ == '__main__':
                     image_size=args.image_size,
                     trace_len=args.data_path[args.dataset]['max_trace_len'],
                     side=args.side,
-                    leng=80000
+                    leng=80000,
+                    attack=args.attack
                 )
     test_dataset = CelebaDataset(
                     img_dir=args.data_path[args.dataset]['media'], 
@@ -404,6 +405,7 @@ if __name__ == '__main__':
                     image_size=args.image_size,
                     trace_len=args.data_path[args.dataset]['max_trace_len'],
                     side=args.side,
+                    attack=args.attack
                 )
     train_loader = loader.get_loader(train_dataset)
     test_loader = loader.get_loader(test_dataset, shuffle=False)
