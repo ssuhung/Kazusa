@@ -393,7 +393,8 @@ if __name__ == '__main__':
                     trace_len=args.data_path[args.dataset]['max_trace_len'],
                     side=args.side,
                     leng=80000,
-                    attack=args.attack
+                    attack=args.attack,
+                    img_type=args.data_path[args.dataset]['image_type']
                 )
     test_dataset = CelebaDataset(
                     img_dir=args.data_path[args.dataset]['media'], 
@@ -405,7 +406,8 @@ if __name__ == '__main__':
                     image_size=args.image_size,
                     trace_len=args.data_path[args.dataset]['max_trace_len'],
                     side=args.side,
-                    attack=args.attack
+                    attack=args.attack,
+                    img_type=args.data_path[args.dataset]['image_type']
                 )
     train_loader = loader.get_loader(train_dataset)
     test_loader = loader.get_loader(test_dataset, shuffle=False)

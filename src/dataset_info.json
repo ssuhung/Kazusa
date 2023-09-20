@@ -15,7 +15,8 @@
       ],
       "max_trace_len": 300000,
       "num_class": 10177,
-      "image_size": 128
+      "image_size": 128,
+      "image_type": "jpg"
    },
    "CelebA_webp":{
       "media":"data/CelebA_WebP/image/",
@@ -28,7 +29,8 @@
       ],
       "max_trace_len": 897567,
       "num_class": 10177,
-      "image_size": 128
+      "image_size": 128,
+      "image_type": "webp"
    },
    "Generalv1":{
       "media":"data/Generalv1/image/",
