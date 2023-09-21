@@ -383,7 +383,7 @@ if __name__ == '__main__':
 
     loader = DataLoader(args)
     train_dataset = CelebaDataset(
-                    img_dir=args.data_path[args.dataset]['media'], 
+                    img_dir=args.data_path[args.dataset]['img_dir'], 
                     npz_dir=args.data_path[args.dataset][args.side],
                     ID_path=args.data_path[args.dataset]['ID_path'],
                     split=args.data_path[args.dataset]['split'][0],
@@ -397,7 +397,7 @@ if __name__ == '__main__':
                     img_type=args.data_path[args.dataset]['image_type']
                 )
     test_dataset = CelebaDataset(
-                    img_dir=args.data_path[args.dataset]['media'], 
+                    img_dir=args.data_path[args.dataset]['img_dir'], 
                     npz_dir=args.data_path[args.dataset][args.side],
                     ID_path=args.data_path[args.dataset]['ID_path'],
                     split=args.data_path[args.dataset]['split'][1],

@@ -24,7 +24,7 @@ class RealSideDataset(Dataset):
 
         self.trace_c = args.trace_c
         self.trace_w = args.trace_w
-        self.img_dir = ('%s%s/' % (args.data_path[args.dataset]['media'], split))
+        self.img_dir = ('%s%s/' % (args.data_path[args.dataset]['img_dir'], split))
         self.npz_dir = ('%s%s/' % (args.data_path[args.dataset]['cacheline'], split))
 
         self.npz_list = sorted(os.listdir(self.npz_dir))[:60000]
@@ -729,7 +729,7 @@ if __name__ == '__main__':
     engine.fit2(train_loader, test_loader)
 
 
-    # Part B: for reconstructing media data
+    # Part B: for reconstructing images
     
     # B1. use our trained model
     # ROOT = '../'

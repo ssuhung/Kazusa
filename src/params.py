@@ -56,7 +56,7 @@ class Params:
         for dataset_name in data_path.keys():
             item = data_path[dataset_name]
             for k in item.keys():
-                if k in ['media', 'pin', 'cacheline32', 'cacheline', 'cacheline_encode', 'pp-intel-dcache', 'pp-intel-icache', 'ID_path', 'refiner_path']:
+                if k in ['img_dir', 'pin', 'cacheline32', 'cacheline', 'cacheline_encode', 'pp-intel-dcache', 'pp-intel-icache', 'ID_path', 'refiner_path']:
                     item[k] = os.path.join(root_dir, item[k])
         self.args.data_path = data_path
         self.args.image_size = data_path[self.args.dataset]['image_size']
