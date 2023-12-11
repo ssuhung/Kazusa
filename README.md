@@ -50,6 +50,10 @@ The model, samples of reference images and reconstructed images will be saved in
 
 # Common Problem
 
-1.  Shared Memory Not Enough or Worker of Dataloader Terminate Unexpectedly
+1.  Shared memory not enough or worker of dataloader terminate unexpectedly
 
     Try to decrease the number of workers with parameter `--num_workers`
+
+2. GPU memory not enough
+
+    Try to decrease the batch size
