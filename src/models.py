@@ -209,7 +209,7 @@ class dcgan_conv_1d(nn.Module):
         super().__init__()
         self.main = nn.Sequential(
             nn.Conv1d(nin, nout, kernal_size, padding=kernal_size//2),
-            nn.MaxPool1d(4),
+            nn.MaxPool1d(kernal_size),
             nn.BatchNorm1d(nout),
             nn.LeakyReLU(0.2, inplace=True)
         )
@@ -459,7 +459,7 @@ class TraceEncoder_1DCNN_encode(nn.Module):
             nn.Sequential(
                 nn.Flatten(),
                 # batch size x nf*8*73 or 79 or 146
-                nn.Linear(nf*8*73, 128),
+                nn.Linear(nf*8*146, 128),
                 # batch size x 128
                 nn.BatchNorm1d(128),
             )
