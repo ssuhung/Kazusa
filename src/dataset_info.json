@@ -1,9 +1,8 @@
 {
    "CelebA_jpg":{
-      "media":"data/CelebA_jpg/image/",
+      "img_dir":"data/CelebA_jpg/image/",
       "pin":"data/CelebA_jpg/pin/raw/",
       "cacheline32":"data/CelebA_jpg/pin/cacheline32/",
-      "pagetable32":"data/CelebA_jpg/pin/pagetable32/",
       "cacheline":"data/CelebA_jpg/pin/cacheline/",
       "cacheline_encode":"data/CelebA_jpg/pin/raw/",
       "pp-intel-dcache":"data/CelebA_jpg/pp_noConcat/intel-dcache/",
@@ -15,10 +14,12 @@
          "test"
       ],
       "max_trace_len": 300000,
-      "num_class": 10177
+      "num_class": 10177,
+      "image_size": 128,
+      "image_type": "jpg"
    },
    "CelebA_webp":{
-      "media":"data/CelebA_WebP/image/",
+      "img_dir":"data/CelebA_WebP/image/",
       "pin":"data/CelebA_WebP/pin/raw_uncomp/",
       "cacheline_encode":"data/CelebA_WebP/pin/raw_uncomp/",
       "ID_path":"data/CelebA_WebP/CelebA_ID_dict.json",
@@ -27,10 +28,12 @@
          "test"
       ],
       "max_trace_len": 897567,
-      "num_class": 10177
+      "num_class": 10177,
+      "image_size": 128,
+      "image_type": "webp"
    },
    "Generalv1":{
-      "media":"data/Generalv1/image/",
+      "img_dir":"data/Generalv1/image/",
       "pin":"data/Generalv1/pin/raw/",
       "cacheline_encode":"data/Generalv1/pin/raw/",
       "ID_path":"data/Generalv1/img_category.json",

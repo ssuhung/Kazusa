@@ -32,19 +32,20 @@ Follow the instruction in [libwebp](https://github.com/webmproject/libwebp) repo
 make obj-intel64/mem_access.so TARGET=intel64
 ```
 
-3. Copy `pin/prep_celeba.py` to `<pin root>/source/tools/ManualExamples/` and set the `repo_root` variable to the directory of this repository in the file:
+3. Copy `pin/prep_traces.py` to `<pin root>/source/tools/ManualExamples/` and set the `repo_root` variable to the directory of this repository in the file:
 
-4. Execute the script to collect traces
+4. Execute the script to collect traces. Use `--num_workers` option to accelerate the process
 ```shell
 cd <pin root>/source/tools/ManualExamples/
-python3 prep_celeba.py
+python3 prep_traces.py　--num_workers <number of workers>
 ```
+(Optional) 5. To train the model with traces collected from `libwebp`, uncompressing the npz file and preforming pre-processing is necessary for optimizing the proformance. Execute the `util/uncompress_npz.py` script
 
 # 4. Train and Evaluate
 Train the neural network model by the following command
 ```shell
 cd src
-python3 recons_image.py --side <cacheline or cacheline_encode> --dataset <CelebA_jpg or CelebA_webp> --exp_name <arbitrary_experiment_name>
+python3 recons_image.py --side <cacheline or cacheline_encode> --dataset <CelebA_jpg or CelebA_webp> --attack <pp or wb> --exp_name <arbitrary_experiment_name>
 ```
 The model, samples of reference images and reconstructed images will be saved in `output/<arbitrary_experiment_name>`
 

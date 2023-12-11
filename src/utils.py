@@ -9,24 +9,6 @@ import torchvision
 irange = range
 
 
-class GradSaver:
-    def __init__(self):
-        self.grad = -1
-    
-    def save_grad(self, grad):
-        self.grad = grad
-
-def clip_gradient(optimizer, grad_clip):
-    """
-    Clips gradients computed during backpropagation to avoid explosion of gradients.
-    :param optimizer: optimizer with the gradients to be clipped
-    :param grad_clip: clip value
-    """
-    for group in optimizer.param_groups:
-        for param in group['params']:
-            if param.grad is not None:
-                param.grad.data.clamp_(-grad_clip, grad_clip)
-
 def accuracy(scores, targets, k=1):
     """
     Computes top-k accuracy, from predicted and true labels.

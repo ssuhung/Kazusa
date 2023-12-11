@@ -10,7 +10,7 @@ seg_id = int(sys.argv[2])
 total_num = 8
 assert seg_id in list(range(total_num))
 
-ROOT = os.environ.get('MANIFOLD_SCA')
+ROOT = '../'
 
 input_dir = ROOT + '/data/CelebA_jpg/image/'
 

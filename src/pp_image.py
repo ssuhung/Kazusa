@@ -2,7 +2,6 @@ import json
 import os
 import random
 import time
-from attr import s
 
 import numpy as np
 import progressbar
@@ -25,7 +24,7 @@ class RealSideDataset(Dataset):
 
         self.trace_c = args.trace_c
         self.trace_w = args.trace_w
-        self.img_dir = ('%s%s/' % (args.data_path[args.dataset]['media'], split))
+        self.img_dir = ('%s%s/' % (args.data_path[args.dataset]['img_dir'], split))
         self.npz_dir = ('%s%s/' % (args.data_path[args.dataset]['cacheline'], split))
 
         self.npz_list = sorted(os.listdir(self.npz_dir))[:60000]
@@ -679,11 +678,11 @@ class ImageEngine:
 
 
 if __name__ == '__main__':
-    p = Params()
-    args = p.parse()
+    args = Params().parse()
 
-    if args.cpu == 'intel' and args.cache == 'dcache':
-        (args.trace_w, args.trace_c) = (256, 8)
+    args.cpu == 'intel'
+    args.cache == 'dcache'
+    args.trace_w, args.trace_c = 256, 8
 
     args.nz = 128
     print(args.exp_name)
@@ -697,12 +696,12 @@ if __name__ == '__main__':
     torch.cuda.manual_seed_all(manual_seed)
 
     utils.make_path(args.output_root)
-    utils.make_path(args.output_root + args.exp_name)
+    utils.make_path(os.path.join(args.output_root, args.exp_name))
 
-    args.image_root = args.output_root + args.exp_name + '/image/'
-    args.ckpt_root = args.output_root + args.exp_name + '/ckpt/'
-    args.recons_root = args.output_root + args.exp_name + '/recons/'
-    args.target_root = args.output_root + args.exp_name + '/target/'
+    args.image_root = os.path.join(args.output_root, args.exp_name, 'image/')
+    args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt/')
+    args.recons_root = os.path.join(args.output_root, args.exp_name, 'recons/')
+    args.target_root = os.path.join(args.output_root, args.exp_name, 'target/')
 
     utils.make_path(args.image_root)
     utils.make_path(args.ckpt_root)
@@ -730,10 +729,10 @@ if __name__ == '__main__':
     engine.fit2(train_loader, test_loader)
 
 
-    # Part B: for reconstructing media data
+    # Part B: for reconstructing images
     
     # B1. use our trained model
-    # ROOT = '..' if os.environ.get('MANIFOLD_SCA') is None else os.environ.get('MANIFOLD_SCA') # use our trained model
+    # ROOT = '../'
     # engine.load_model(ROOT + '/models/pp/CelebA_intel_dcache/final.pth')
     # if arg.use_refiner:
     #     engine.load_refiner(ROOT + '/models/pin/CelebA_refiner/refiner-final.pth')

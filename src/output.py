@@ -1,16 +1,19 @@
+import random
 import time
-import numpy as np
-import progressbar
 
+import progressbar
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence
 
-import utils
 import models
+import utils
+from data_loader import *
+from params import Params
 
-class Pipeline(object):
+
+class Pipeline:
     def __init__(self, args, media, idx2word, word2idx):
         self.args = args
         self.epoch = 0
@@ -57,19 +60,6 @@ class Pipeline(object):
             utils.save_image(output[i].unsqueeze(0).data,
                              path + name_list[i] + '.jpg',
                              normalize=True, nrow=1, padding=0)
-
-    def save_audio(self, output, name_list, path):
-        # save lms in .npz format
-        assert len(output) == len(name_list)
-        for i in range(len(output)):
-            output[i] = self.norm_inv(output[i])
-        output = utils.my_scale_inv(v=output, 
-                                    v_max=self.args.max_db,
-                                    v_min=self.args.min_db)
-        output = output.cpu().numpy()
-        for i in range(len(output)):
-            np.savez_compressed(path + name_list[i] + '.npz',
-                                output[i])
 
     def output(self, data_loader, recons_dir, target_dir):
         with torch.no_grad():
@@ -136,32 +126,12 @@ class Pipeline(object):
                 print('Target %s Saved in %s' % (self.media, target_dir))
 
 if __name__ == '__main__':
-    import os
-    import argparse
-    import random
+    args = Params().parse()
 
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-
-    import utils
-    from params import Params
-    from data_loader import *
-
-    p = Params()
-    args = p.parse()
-
-    ROOT = os.environ.get('MANIFOLD_SCA')
-    if ROOT is None:
-        ROOT = '..'
+    ROOT = '..'
 
     dataset2media = {
         'CelebA': 'image',
-        'ChestX-ray': 'image',
-        'SC09': 'audio',
-        'Sub-URMP': 'audio',
-        'COCO': 'text',
-        'DailyDialog': 'text',
         'CIFAR100': 'image'
     }
 
@@ -180,11 +150,6 @@ if __name__ == '__main__':
     media = dataset2media[args.dataset]
     (args.trace_c, args.trace_w) = media2trace[media]
     args.nz = media2nz[media]
-    args.lms_w = 128
-    if args.dataset == 'SC09':
-        args.lms_h = 44
-    elif args.dataset == 'Sub-URMP':
-        args.lms_h = 22
 
     args.use_refiner = 1
     args.exp_name = 'recons_%s' % args.dataset
@@ -198,109 +163,41 @@ if __name__ == '__main__':
     torch.cuda.manual_seed_all(manual_seed)
 
     utils.make_path(args.output_root)
-    utils.make_path(args.output_root + args.exp_name)
+    utils.make_path(os.path.join(args.output_root, args.exp_name))
 
-    args.ckpt_root = args.output_root + args.exp_name + '/ckpt/'
-    args.recons_root = args.output_root + args.exp_name + '/recons/'
-    args.target_root = args.output_root + args.exp_name + '/target/'
+    args.ckpt_root = os.path.join(args.output_root, args.exp_name, 'ckpt')
+    args.recons_root = os.path.join(args.output_root, args.exp_name, 'recons')
+    args.target_root = os.path.join(args.output_root, args.exp_name, 'target')
 
     utils.make_path(args.ckpt_root)
     utils.make_path(args.recons_root)
     utils.make_path(args.target_root)
 
-    if args.dataset == 'CelebA':
-        test_dataset = CelebaDataset(
-                    img_dir=args.data_path[args.dataset]['media'], 
-                    npz_dir=args.data_path[args.dataset][args.side],
-                    ID_path=args.data_path[args.dataset]['ID_path'],
-                    split=args.data_path[args.dataset]['split'][1],
-                    trace_c=args.trace_c,
-                    trace_w=args.trace_w,
-                    image_size=args.image_size,
-                    side=args.side
-                )
-        if args.use_refiner:
-            ckpt_path = ROOT + '/models/pin/CelebA_cacheline_pre/final.pth'
-            refiner_path = ROOT + '/models/pin/CelebA_refiner/refiner-final.pth'
-        else:
-            ckpt_path = ROOT + '/models/pin/CelebA_cacheline/final.pth'
-    elif args.dataset == 'ChestX-ray':
-        test_dataset = ChestDataset(
-                    img_dir=args.data_path[args.dataset]['media'], 
-                    npz_dir=args.data_path[args.dataset][args.side],
-                    split=args.data_path[args.dataset]['split'][1],
-                    trace_c=args.trace_c,
-                    trace_w=args.trace_w,
-                    image_size=args.image_size,
-                    side=args.side
-                )
-        if args.use_refiner:
-            ckpt_path = ROOT + '/models/pin/ChestX-ray_cacheline_pre/final.pth'
-            refiner_path = ROOT + '/models/pin/ChestX-ray_refiner/refiner-final.pth'
-        else:
-            ckpt_path = ROOT + '/models/pin/ChestX-ray_cacheline/final.pth'
-    elif args.dataset == 'SC09':
-        test_dataset = SC09Dataset(
-                    lms_dir=args.data_path[args.dataset]['media'],
-                    npz_dir=args.data_path[args.dataset][args.side],
-                    split=args.data_path[args.dataset]['split'][1],
-                    trace_c=args.trace_c,
-                    trace_w=args.trace_w,
-                    max_db=args.max_db,
-                    min_db=args.min_db,
-                    side=args.side
-                )
-        ckpt_path = ROOT + '/models/pin/SC09_cacheline/final.pth'
-    elif args.dataset == 'Sub-URMP':
-        test_dataset = URMPDataset(
-                    lms_dir=args.data_path[args.dataset]['media'],
-                    npz_dir=args.data_path[args.dataset][args.side],
-                    split=args.data_path[args.dataset]['split'][1],
-                    trace_c=args.trace_c,
-                    trace_w=args.trace_w,
-                    max_db=args.max_db,
-                    min_db=args.min_db,
-                    side=args.side
-                )
-        ckpt_path = ROOT + '/models/pin/Sub-URMP_cacheline/final.pth'
-    elif args.dataset == 'COCO':
-        test_dataset = CaptionDataset(
-                    text_dir=args.data_path[args.dataset]['media'],
-                    npz_dir=args.data_path[args.dataset][args.side],
-                    dict_path=args.data_path[args.dataset]['vocab_path'],
-                    split=args.data_path[args.dataset]['split'][1], 
-                    side=args.side,
-                    pad_length=181,
-                    trace_c=args.trace_c,
-                    trace_w=args.trace_w
-                )
-        args.vocab_size = len(test_dataset.word_dict.keys())
-        ckpt_path = ROOT + '/models/pin/COCO_cacheline/final.pth'
-    elif args.dataset == 'DailyDialog':
-        test_dataset = DailyDialogDataset(
-                    text_dir=args.data_path[args.dataset]['media'],
-                    npz_dir=args.data_path[args.dataset][args.side],
-                    dict_path=args.data_path[args.dataset]['vocab_path'],
-                    split=args.data_path[args.dataset]['split'][1], 
-                    side=args.side,
-                    pad_length=64,
-                    trace_c=args.trace_c,
-                    trace_w=args.trace_w
-                )
-        args.vocab_size = len(test_dataset.word_dict.keys())
-        ckpt_path = ROOT + '/models/pin/DailyDialog_cacheline/final.pth'
+    test_dataset = CelebaDataset(
+                img_dir=args.data_path[args.dataset]['media'], 
+                npz_dir=args.data_path[args.dataset][args.side],
+                ID_path=args.data_path[args.dataset]['ID_path'],
+                split=args.data_path[args.dataset]['split'][1],
+                trace_c=args.trace_c,
+                trace_w=args.trace_w,
+                image_size=args.image_size,
+                side=args.side
+            )
+    if args.use_refiner:
+        ckpt_path = os.path.join(ROOT, '/models/pin/CelebA_cacheline_pre/final.pth')
+        refiner_path = os.path.join(ROOT, '/models/pin/CelebA_refiner/refiner-final.pth')
+    else:
+        ckpt_path = os.path.join(ROOT, '/models/pin/CelebA_cacheline/final.pth')
 
     loader = DataLoader(args)
 
     test_loader = loader.get_loader(test_dataset, shuffle=False)
 
-    engine = Pipeline(args, media,
-                idx2word=(test_dataset.index_to_word if media == 'text' else None),
-                word2idx=(test_dataset.word_to_index if media == 'text' else None))
+    engine = Pipeline(args, media, idx2word=None, word2idx=None)
     
     # Use our trained models
     engine.load_model(ckpt_path)
-    if media == 'image' and args.use_refiner:
+    if args.use_refiner:
         engine.load_refiner(refiner_path)
 
     # # Use your models
